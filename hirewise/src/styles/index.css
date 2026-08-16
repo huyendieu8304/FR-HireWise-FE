@@ -1,0 +1,48 @@
+/**
+ * Entry point CSS — import tokens (theme) rồi tới base layer.
+ * Component KHÔNG import 'tailwindcss' trực tiếp, luôn qua file này.
+ */
+@import './tokens.css';
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-family: var(--font-sans);
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900 antialiased;
+  }
+
+  .dark body {
+    @apply bg-neutral-950 text-neutral-50;
+  }
+
+  /* Focus ring nhất quán toàn app cho a11y — không dùng outline mặc định xấu */
+  :focus-visible {
+    @apply outline-primary-500 outline-2 outline-offset-2;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  /* Container chuẩn cho các trang nội bộ (dashboard) */
+  .page-container {
+    @apply mx-auto w-full max-w-[1400px] px-(--spacing-gutter);
+  }
+
+  /* Ẩn scrollbar nhưng vẫn scroll được (dùng cho thanh tab ngang, v.v.) */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

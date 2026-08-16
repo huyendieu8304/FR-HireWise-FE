@@ -1,0 +1,10 @@
+# Tài liệu nghiệp vụ nội bộ — không public/chia sẻ qua Git.
+# Backlog, Proposal... chỉ lưu local hoặc chia sẻ qua kênh riêng của team.
+Planning/
+
+# OS / editor cruft (áp dụng cho cả repo, ngoài phạm vi hirewise/.gitignore)
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea

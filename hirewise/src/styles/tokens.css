@@ -1,0 +1,177 @@
+/**
+ * =============================================================================
+ * DESIGN TOKENS — Nguồn sự thật duy nhất (single source of truth) cho theme.
+ * =============================================================================
+ *
+ * Đây là nơi DUY NHẤT bạn cần sửa khi rebrand / đổi theme. Không hard-code
+ * màu sắc, khoảng cách, bo góc... trực tiếp trong component — luôn tham chiếu
+ * qua các Tailwind utility được sinh ra từ token bên dưới (vd: `bg-primary-600`,
+ * `text-danger-500`, `rounded-md`, `shadow-elevation-2`).
+ *
+ * Cơ chế: Tailwind v4 dùng CSS-first config. Khối `@theme` bên dưới định nghĩa
+ * biến CSS (--color-primary-500, --font-size-lg, ...) và Tailwind TỰ ĐỘNG sinh
+ * ra utility class tương ứng — không cần khai báo lại trong tailwind.config.js.
+ *
+ * Quy ước đặt tên thang màu: 50 (nhạt nhất) → 950 (đậm nhất), 500 là màu gốc.
+ * =============================================================================
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* ---------------------------------------------------------------------
+   * 1. MÀU SẮC (Color Tokens)
+   * ------------------------------------------------------------------- */
+
+  /* Primary — màu thương hiệu chính, dùng cho CTA, link, focus ring */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* Secondary — màu phụ trợ, dùng cho nhấn nhá thứ cấp, badge, accent nhẹ */
+  --color-secondary-50: #f5f3ff;
+  --color-secondary-100: #ede9fe;
+  --color-secondary-200: #ddd6fe;
+  --color-secondary-300: #c4b5fd;
+  --color-secondary-400: #a78bfa;
+  --color-secondary-500: #8b5cf6;
+  --color-secondary-600: #7c3aed;
+  --color-secondary-700: #6d28d9;
+  --color-secondary-800: #5b21b6;
+  --color-secondary-900: #4c1d95;
+  --color-secondary-950: #2e1065;
+
+  /* Neutral — nền, viền, text. Dùng nhất quán MỘT thang xám (zinc) toàn dự án */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f4f4f5;
+  --color-neutral-200: #e4e4e7;
+  --color-neutral-300: #d4d4d8;
+  --color-neutral-400: #a1a1aa;
+  --color-neutral-500: #71717a;
+  --color-neutral-600: #52525b;
+  --color-neutral-700: #3f3f46;
+  --color-neutral-800: #27272a;
+  --color-neutral-900: #18181b;
+  --color-neutral-950: #09090b;
+
+  /* State colors — trạng thái hệ thống, dùng cho toast/badge/alert/validation */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  /* ---------------------------------------------------------------------
+   * 2. TYPOGRAPHY
+   * ------------------------------------------------------------------- */
+
+  /* Font family — Inter chấp nhận được vì đây là app nội bộ/B2B chuẩn mực,
+     không phải landing page cần cá tính thương hiệu (xem SKILL.md 4.1) */
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Font size scale — đi kèm line-height hợp lý cho từng cỡ */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-xs--line-height: 1rem; /* 16px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-sm--line-height: 1.25rem; /* 20px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-base--line-height: 1.5rem; /* 24px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-lg--line-height: 1.75rem; /* 28px */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-xl--line-height: 1.75rem; /* 28px */
+  --font-size-2xl: 1.5rem; /* 24px */
+  --font-size-2xl--line-height: 2rem; /* 32px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-3xl--line-height: 2.25rem; /* 36px */
+  --font-size-4xl: 2.25rem; /* 36px */
+  --font-size-4xl--line-height: 2.5rem; /* 40px */
+
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ---------------------------------------------------------------------
+   * 3. BO GÓC (Border Radius) — SHAPE CONSISTENCY LOCK
+   * Quy ước: input/card dùng `--radius-md`, button dùng `--radius-md`,
+   * badge/pill dùng `--radius-full`. Không trộn thang bo góc tùy tiện.
+   * ------------------------------------------------------------------- */
+  --radius-none: 0px;
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------
+   * 4. KHOẢNG CÁCH (Spacing) — bổ sung thang spacing riêng cho layout app
+   * (Tailwind v4 vẫn giữ thang spacing mặc định dựa trên --spacing gốc;
+   * đây là các alias có tên ngữ nghĩa dùng cho layout cấp cao: sidebar, gutter)
+   * ------------------------------------------------------------------- */
+  --spacing-gutter: 1.5rem; /* padding ngang chuẩn của page container */
+  --spacing-section: 2.5rem; /* khoảng cách giữa các section trong 1 trang */
+  --spacing-sidebar: 17.5rem; /* 280px - độ rộng sidebar chuẩn */
+  --spacing-header: 4rem; /* 64px - chiều cao header chuẩn */
+
+  /* ---------------------------------------------------------------------
+   * 5. ELEVATION / SHADOW — tint theo neutral, không dùng pure-black
+   * ------------------------------------------------------------------- */
+  --shadow-elevation-1: 0 1px 2px 0 rgb(24 24 27 / 0.06);
+  --shadow-elevation-2:
+    0 1px 3px 0 rgb(24 24 27 / 0.08), 0 1px 2px -1px rgb(24 24 27 / 0.08);
+  --shadow-elevation-3:
+    0 4px 6px -1px rgb(24 24 27 / 0.08), 0 2px 4px -2px rgb(24 24 27 / 0.08);
+  --shadow-elevation-4:
+    0 10px 15px -3px rgb(24 24 27 / 0.1), 0 4px 6px -4px rgb(24 24 27 / 0.1);
+
+  /* ---------------------------------------------------------------------
+   * 6. Z-INDEX SCALE — tránh xung đột chồng lớp giữa dropdown/modal/toast
+   * ------------------------------------------------------------------- */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1100;
+  --z-index-drawer: 1200;
+  --z-index-modal-backdrop: 1300;
+  --z-index-modal: 1310;
+  --z-index-toast: 1400;
+  --z-index-tooltip: 1500;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * DARK MODE
+ * Kích hoạt bằng cách thêm class="dark" trên <html>. Ghi đè token neutral để
+ * đảo nền/chữ; component không cần biết đang ở theme nào, chỉ dùng token.
+ * ---------------------------------------------------------------------------
+ */
+@custom-variant dark (&:where(.dark, .dark *));
