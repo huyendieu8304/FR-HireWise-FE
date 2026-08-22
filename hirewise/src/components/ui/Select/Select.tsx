@@ -64,7 +64,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             aria-describedby={
               error ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined
             }
-            defaultValue={props.defaultValue ?? ''}
+            // Chỉ set defaultValue khi component dùng ở chế độ UNCONTROLLED
+            // (không có `value`) — tránh cảnh báo React "both value and
+            // defaultValue" khi component được dùng controlled (vd trong
+            // PermissionDrawer với useState thay vì register()).
+            {...(props.value === undefined
+              ? { defaultValue: props.defaultValue ?? '' }
+              : {})}
             className={cn(
               inputBaseClasses,
               inputStateClasses(!!error),
