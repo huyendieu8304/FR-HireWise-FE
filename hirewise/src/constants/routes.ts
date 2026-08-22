@@ -4,8 +4,10 @@
  */
 export const ROUTES = {
   LOGIN: '/login',
+  ACTIVATE: '/activate',
   DASHBOARD: '/dashboard',
   JOBS: '/jobs',
+  USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
 } as const;
