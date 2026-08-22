@@ -3,7 +3,7 @@ import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from 'axios';
-import { AppError, type ApiErrorResponse, type ApiSuccessResponse } from '@/types/api';
+import { AppError, type ApiErrorResponse } from '@/types/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { emitUnauthorized } from '@/lib/authEvents';
 import { showErrorToast } from '@/components/ui/Toast/toastBus';
@@ -13,11 +13,13 @@ import { showErrorToast } from '@/components/ui/Toast/toastBus';
  * API CLIENT — instance Axios dùng chung cho toàn bộ ứng dụng.
  * =============================================================================
  * - Mọi lệnh gọi API PHẢI đi qua instance này (không tạo `axios.create` rải rác).
- * - baseURL đọc từ biến môi trường `VITE_API_BASE_URL` (xem .env.example).
+ * - baseURL đọc từ biến môi trường `VITE_API_BASE_URL` (xem .env.example) —
+ *   trỏ vào backend Spring Boot thật (`FR-HireWise-BE`), vd
+ *   `http://localhost:8080/api`.
  * - Request interceptor: tự gắn Bearer token nếu đã đăng nhập.
- * - Response interceptor: bóc `data` khỏi envelope chuẩn, và quy đổi MỌI lỗi
- *   (network, 4xx, 5xx) về một kiểu `AppError` duy nhất — nơi gọi API không
- *   cần biết lỗi tới từ đâu, chỉ cần `catch (err) { if (err instanceof AppError) }`.
+ * - Response interceptor: quy đổi MỌI lỗi (network, 4xx, 5xx) về một kiểu
+ *   `AppError` duy nhất — nơi gọi API không cần biết lỗi tới từ đâu, chỉ cần
+ *   `catch (err) { if (err instanceof AppError) }`.
  */
 
 export const apiClient = axios.create({
@@ -47,17 +49,25 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 // ---------------------------------------------------------------------------
-// RESPONSE INTERCEPTOR — bóc data + chuẩn hóa lỗi + xử lý status code chung
+// RESPONSE INTERCEPTOR — chuẩn hóa lỗi + xử lý status code chung
 // ---------------------------------------------------------------------------
 apiClient.interceptors.response.use(
   (response) => {
-    // Bóc `data` khỏi envelope { data, message, meta } để nơi gọi API dùng
-    // thẳng payload, không phải viết `res.data.data` ở mọi nơi.
-    const body = response.data as ApiSuccessResponse<unknown>;
+    // QUAN TRỌNG: `http.*<T>()` bên dưới khai axios generic là `<T, T>`
+    // (không phải `<T, AxiosResponse<T>>`) — nghĩa là promise phải resolve
+    // THẲNG ra dữ liệu T, không phải nguyên object AxiosResponse. Axios
+    // không tự làm việc đó — chính interceptor này phải trả về giá trị sẽ
+    // resolve, nên bắt buộc trả `response.data` (hoặc `body.data` nếu có
+    // envelope), KHÔNG được trả `response` (object AxiosResponse) như cũ.
+    //
+    // Backend (FR-HireWise-BE) trả DTO trực tiếp, KHÔNG bọc envelope
+    // { data: ... } — nhưng vẫn giữ nhánh bóc envelope để tương thích
+    // ngược nếu sau này có endpoint nào đó trả { data, message } thật.
+    const body = response.data as { data?: unknown } | undefined;
     if (body && typeof body === 'object' && 'data' in body) {
-      return { ...response, data: body.data };
+      return body.data;
     }
-    return response;
+    return response.data;
   },
   (error: AxiosError<ApiErrorResponse>) => {
     const config = error.config as RequestConfig | undefined;
@@ -78,8 +88,22 @@ apiClient.interceptors.response.use(
     const { status, data } = error.response;
     const serverMessage = data?.message;
 
-    // 2. Xử lý theo từng nhóm status code phổ biến
+    // 2. Xử lý theo từng nhóm status code — khớp đúng GlobalExceptionHandler
+    // của backend (xem FR-HireWise-BE/src/main/java/.../exception/).
     switch (status) {
+      case 400: {
+        // Bean Validation (MethodArgumentNotValidException) hoặc
+        // BadRequestException — kèm `fieldErrors` (1 message/field) để form
+        // tự map lỗi inline, KHÔNG toast chung chung.
+        const appError = new AppError({
+          message: serverMessage ?? 'Dữ liệu không hợp lệ.',
+          status,
+          code: data?.code,
+          fieldErrors: data?.fieldErrors,
+        });
+        return Promise.reject(appError);
+      }
+
       case 401: {
         const appError = new AppError({
           message: serverMessage ?? 'Phiên đăng nhập đã hết hạn.',
@@ -113,15 +137,28 @@ apiClient.interceptors.response.use(
         return Promise.reject(appError);
       }
 
-      case 422: {
-        // Lỗi validate — trả kèm `errors` theo field để form tự map, KHÔNG toast
-        // chung chung (form sẽ hiển thị lỗi inline dưới từng input).
+      case 409: {
+        // BusinessConflictException (vd USER_ALREADY_EXISTS khi tạo user
+        // trùng email) — để nơi gọi tự map lỗi inline (giống 400), không
+        // toast chung chung vì thường hiển thị ngay dưới field liên quan.
         const appError = new AppError({
-          message: serverMessage ?? 'Dữ liệu không hợp lệ.',
+          message: serverMessage ?? 'Dữ liệu đã tồn tại hoặc xung đột trạng thái.',
           status,
           code: data?.code,
-          errors: data?.errors,
         });
+        return Promise.reject(appError);
+      }
+
+      case 423: {
+        // AccountLockedException (BR-AUTH-02: khóa tạm sau nhiều lần đăng
+        // nhập sai) — cần user biết ngay, auto-toast.
+        const appError = new AppError({
+          message:
+            serverMessage ?? 'Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần.',
+          status,
+          code: data?.code,
+        });
+        if (!config?.silent) showErrorToast(appError.message);
         return Promise.reject(appError);
       }
 
