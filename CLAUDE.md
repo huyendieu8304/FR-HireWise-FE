@@ -3,7 +3,7 @@
 ## Bối cảnh dự án
 
 HireWise là hệ thống ATS (Applicant Tracking System) cho SME. Đọc
-`Planning/Planning/` khi cần hiểu nghiệp vụ (Backlog.xlsx: Feature / Main
+`Planning/Planning/`và 'Planning/document SRS and diagram' khi cần hiểu nghiệp vụ (Backlog.xlsx: Feature / Main
 Flow / User Stories, và bản Proposal) — đặc biệt trước khi implement 1
 feature nghiệp vụ mới (Kanban pipeline, Scorecard, Offer & e-Signature...).
 
