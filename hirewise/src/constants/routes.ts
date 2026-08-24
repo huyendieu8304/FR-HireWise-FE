@@ -11,4 +11,5 @@ export const ROUTES = {
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
   SETTINGS_INTEGRATIONS: '/settings/integrations',
+  SETTINGS_EMAIL_TEMPLATES: '/settings/email-templates',
 } as const;

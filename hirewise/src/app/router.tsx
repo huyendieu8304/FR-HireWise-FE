@@ -8,6 +8,7 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
+import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
           { path: ROUTES.USERS, element: <UserManagementPage /> },
           { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />,},
+          { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
         ],
       },
