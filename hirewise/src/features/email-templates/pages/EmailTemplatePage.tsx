@@ -1,19 +1,26 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { EnvelopeSimple, MagnifyingGlass, Pencil, Plus } from '@phosphor-icons/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { EnvelopeSimple, MagnifyingGlass, Pencil, Plus, Trash } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { TextInput } from '@/components/ui/TextInput/TextInput';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+import { useDialog } from '@/hooks/useDialog';
+import { useNotification } from '@/hooks/useNotification';
 import { formatDate } from '@/utils/formatters';
-import { listEmailTemplates } from '../api/emailTemplatesApi';
+import { AppError } from '@/types/api';
+import { deleteEmailTemplate, listEmailTemplates } from '../api/emailTemplatesApi';
 import type { EmailTemplate } from '../types';
 import { EmailTemplateFormModal } from '../components/EmailTemplateFormModal';
 
 /**
- * UC-09: danh sach + tim kiem + tao/sua Email Template.
+ * UC-09: danh sach + tim kiem + tao/sua/xoa Email Template.
  */
 export function EmailTemplatePage() {
+  const notify = useNotification();
+  const { confirm } = useDialog();
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EmailTemplate | null>(null);
@@ -34,6 +41,31 @@ export function EmailTemplatePage() {
         t.code.toLowerCase().includes(keyword),
     );
   }, [templates, search]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteEmailTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+      notify.success('Da xoa template thanh cong.');
+    },
+    onError: (error) => {
+      // 409 Conflict = EMAIL_TEMPLATE_STAGE_CONFLICT (ME-15 / BR-EMAILTPL-03)
+      if (error instanceof AppError && error.status === 409) {
+        notify.error(error.message);
+      }
+    },
+  });
+
+  async function handleDelete(template: EmailTemplate) {
+    const ok = await confirm({
+      title: `Xoa Template "${template.name}"?`,
+      description:
+        'Template se bi vo hieu hoa (INACTIVE). Hanh dong nay khong the hoan tac.',
+      confirmLabel: 'Xoa',
+      tone: 'danger',
+    });
+    if (ok) deleteMutation.mutate(template.id);
+  }
 
   function handleEdit(template: EmailTemplate) {
     setEditTarget(template);
@@ -165,6 +197,17 @@ export function EmailTemplatePage() {
                       >
                         <Pencil className="size-3.5" />
                         Sua
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(t)}
+                        disabled={deleteMutation.isPending}
+                        aria-label={`Xoa template ${t.name}`}
+                        className="text-danger-600 hover:bg-danger-50 hover:text-danger-700"
+                      >
+                        <Trash className="size-3.5" />
+                        Xoa
                       </Button>
                     </div>
                   </td>

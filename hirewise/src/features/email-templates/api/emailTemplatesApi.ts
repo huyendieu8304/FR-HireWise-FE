@@ -39,6 +39,11 @@ export function updateEmailTemplate(id: number, payload: EmailTemplatePayload): 
   return http.put<EmailTemplate>(`/admin/email-templates/${id}`, payload);
 }
 
+/** UC-09 AF-02: DELETE /api/admin/email-templates/{id} */
+export function deleteEmailTemplate(id: number): Promise<void> {
+  return http.delete<void>(`/admin/email-templates/${id}`);
+}
+
 
 
 /**
