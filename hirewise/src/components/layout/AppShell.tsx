@@ -4,6 +4,7 @@ import {
   Briefcase,
   CaretDown,
   ChartBar,
+  CloudArrowUp,
   Kanban,
   PuzzlePiece,
   SignOut,
@@ -26,6 +27,12 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEMS = [
   { to: ROUTES.USERS, label: 'Người dùng & Phân quyền', icon: UsersThree },
+  // UC-07/UC-08
+  {
+    to: ROUTES.SETTINGS_INTEGRATIONS,
+    label: 'Tích hợp Cloud Storage',
+    icon: CloudArrowUp,
+  },
 ];
 
 /**

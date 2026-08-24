@@ -10,4 +10,5 @@ export const ROUTES = {
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
+  SETTINGS_INTEGRATIONS: '/settings/integrations',
 } as const;

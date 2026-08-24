@@ -6,6 +6,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ActivatePage } from '@/features/auth/pages/ActivatePage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
+import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { ROUTES } from '@/constants/routes';
 
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
           { path: ROUTES.USERS, element: <UserManagementPage /> },
+          { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />,},
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
         ],
       },
