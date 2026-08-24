@@ -17,7 +17,28 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
 import { getInitials } from '@/utils/formatters';
 
-const NAV_ITEMS = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof SquaresFour;
+  /**
+   * Permission code nào được thấy mục này — `undefined` = mọi user đã đăng
+   * nhập đều thấy (giữ nguyên hành vi cũ). Check trực tiếp trên
+   * `user.permissions`, do backend resolve sẵn từ `role_permissions` và trả
+   * về trong response login (`CurrentUserResponseDto.permissions` — xem
+   * `AuthService#issueLoginResponse` phía backend), nên không cần tự khai báo
+   * role → permission thủ công ở FE nữa.
+   *
+   */
+  requiredPermission?: string;
+}
+
+function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined): boolean {
+  if (!item.requiredPermission) return true;
+  return userPermissions?.includes(item.requiredPermission) ?? false;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: SquaresFour },
   { to: ROUTES.JOBS, label: 'Vị trí tuyển dụng', icon: Briefcase },
   { to: '/pipeline', label: 'Pipeline', icon: Kanban },
@@ -25,13 +46,20 @@ const NAV_ITEMS = [
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
 
-const ADMIN_NAV_ITEMS = [
-  { to: ROUTES.USERS, label: 'Người dùng & Phân quyền', icon: UsersThree },
-  // UC-07/UC-08
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  // Trang danh sách user yêu cầu USER_VIEW (xem UserAdminService#list...).
+  {
+    to: ROUTES.USERS,
+    label: 'Người dùng & Phân quyền',
+    icon: UsersThree,
+    requiredPermission: 'USER_VIEW',
+  },
+  //CloudStorageIntegrationService yêu cầu INTEGRATION_MANAGE.
   {
     to: ROUTES.SETTINGS_INTEGRATIONS,
     label: 'Tích hợp Cloud Storage',
     icon: CloudArrowUp,
+    requiredPermission: 'INTEGRATION_MANAGE',
   },
 ];
 
@@ -39,14 +67,20 @@ const ADMIN_NAV_ITEMS = [
  * Layout khung cho khu vực NỘI BỘ (HR Admin/Recruiter/Manager/Interviewer):
  * sidebar điều hướng cố định + topbar. Trang con render qua `<Outlet />`.
  *
- * Đây là ví dụ mẫu — mở rộng sidebar theo role thực tế (RBAC) khi build
- * feature `auth` đầy đủ.
+ * Sidebar lọc theo `user.permissions` (xem `NavItem.requiredPermission`) -
+ * mục nào không khai báo `requiredPermission` thì hiện cho mọi user đã đăng
+ * nhập, giống hành vi trước khi có RBAC ở tầng này.
  */
 export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
   const notify = useNotification();
   const navigate = useNavigate();
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, user?.permissions));
+  const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) =>
+    isNavItemVisible(item, user?.permissions),
+  );
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,7 +115,7 @@ export function AppShell() {
           <span className="text-lg font-bold text-neutral-900">HireWise</span>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-2">
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -97,24 +131,30 @@ export function AppShell() {
             </NavLink>
           ))}
 
-          <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
-            Quản trị
-          </p>
-          {ADMIN_NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
-                  isActive && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
-                )
-              }
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </NavLink>
-          ))}
+          {/* Ẩn cả tiêu đề nhóm khi user hiện tại không thấy mục Quản trị nào,
+              tránh treo 1 header "Quản trị" trống phía trên. */}
+          {visibleAdminNavItems.length > 0 && (
+            <>
+              <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+                Quản trị
+              </p>
+              {visibleAdminNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
+                      isActive && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
+                    )
+                  }
+                >
+                  <item.icon className="size-4" />
+                  {item.label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
       </aside>
 

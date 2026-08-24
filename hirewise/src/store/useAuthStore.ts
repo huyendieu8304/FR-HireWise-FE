@@ -13,6 +13,12 @@ export interface AuthUser {
   email: string;
   /** Khớp `CurrentUserResponseDto.roles` (Set<String>) — 1 user có thể có nhiều role cùng lúc. */
   roles: string[];
+  /**
+   * Khớp `CurrentUserResponseDto.permissions` (Set<String>) — hợp permission
+   * code của TẤT CẢ role hiện tại, backend đã resolve sẵn từ `role_permissions`
+   * (xem `AuthService#issueLoginResponse`). Chỉ dùng để ẩn/hiện UI (menu, nút bấm...)
+   */
+  permissions: string[];
 }
 
 interface AuthState {

@@ -12,6 +12,7 @@ interface CurrentUserDto {
   email: string;
   fullName: string;
   roles: string[];
+  permissions: string[];
 }
 
 /** Khớp `LoginResponseDto` (backend) — xem FR-HireWise-BE/.../dto/response/LoginResponseDto.java. */
@@ -35,6 +36,7 @@ function toAuthUser(dto: CurrentUserDto): AuthUser {
     name: dto.fullName,
     email: dto.email,
     roles: dto.roles,
+    permissions: dto.permissions,
   };
 }
 
