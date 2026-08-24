@@ -1,20 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { EnvelopeSimple, MagnifyingGlass, Plus } from '@phosphor-icons/react';
+import { EnvelopeSimple, MagnifyingGlass, Pencil, Plus } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { TextInput } from '@/components/ui/TextInput/TextInput';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { formatDate } from '@/utils/formatters';
 import { listEmailTemplates } from '../api/emailTemplatesApi';
+import type { EmailTemplate } from '../types';
 import { EmailTemplateFormModal } from '../components/EmailTemplateFormModal';
 
 /**
- * UC-09: danh sach + tim kiem + tao Email Template.
+ * UC-09: danh sach + tim kiem + tao/sua Email Template.
  */
 export function EmailTemplatePage() {
   const [search, setSearch] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EmailTemplate | null>(null);
 
   const { data: templatePage, isLoading } = useQuery({
     queryKey: ['email-templates'],
@@ -33,8 +35,13 @@ export function EmailTemplatePage() {
     );
   }, [templates, search]);
 
+  function handleEdit(template: EmailTemplate) {
+    setEditTarget(template);
+  }
+
   function handleCloseModal() {
     setIsCreateModalOpen(false);
+    setEditTarget(null);
   }
 
   return (
@@ -88,13 +95,16 @@ export function EmailTemplatePage() {
               <th className="px-4 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
                 Ngay tao
               </th>
+              <th className="px-4 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+                Tac vu
+              </th>
             </tr>
           </thead>
           <tbody>
             {isLoading &&
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-neutral-100 last:border-none">
-                  <td className="px-4 py-3" colSpan={6}>
+                  <td className="px-4 py-3" colSpan={7}>
                     <Skeleton className="h-8 w-full" />
                   </td>
                 </tr>
@@ -102,7 +112,7 @@ export function EmailTemplatePage() {
 
             {!isLoading && filteredTemplates.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center">
+                <td colSpan={7} className="px-4 py-10 text-center">
                   <div className="flex flex-col items-center gap-2 text-neutral-400">
                     <EnvelopeSimple className="size-8" />
                     <p className="text-sm">
@@ -145,6 +155,19 @@ export function EmailTemplatePage() {
                   <td className="px-4 py-3 text-sm text-neutral-500">
                     {formatDate(t.createdAt)}
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(t)}
+                        aria-label={`Sua template ${t.name}`}
+                      >
+                        <Pencil className="size-3.5" />
+                        Sua
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
           </tbody>
@@ -155,6 +178,12 @@ export function EmailTemplatePage() {
       <EmailTemplateFormModal
         open={isCreateModalOpen}
         onClose={handleCloseModal}
+      />
+      <EmailTemplateFormModal
+        key={editTarget?.id ?? 'none'}
+        open={!!editTarget}
+        onClose={handleCloseModal}
+        initialValues={editTarget ?? undefined}
       />
     </div>
   );

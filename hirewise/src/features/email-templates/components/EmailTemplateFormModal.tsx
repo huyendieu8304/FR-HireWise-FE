@@ -11,20 +11,26 @@ import { AppError } from '@/types/api';
 import {
   createEmailTemplate,
   listPipelineStagesForDropdown,
+  updateEmailTemplate,
 } from '../api/emailTemplatesApi';
 import { emailTemplateSchema, type EmailTemplateFormValues } from '../schema';
+import type { EmailTemplate } from '../types';
 
 export interface EmailTemplateFormModalProps {
   open: boolean;
   onClose: () => void;
+  /** Se truyen khi mo Modal de sua template (che do Edit). Khong truyen = che do Create. */
+  initialValues?: EmailTemplate;
 }
 
 /**
- * UC-09 normal flow (tao moi template).
+ * UC-09 normal flow (tao moi) va AF-01 (sua template).
+ * Dung chung 1 modal - che do phu thuoc vao initialValues co duoc truyen hay khong.
  */
-export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModalProps) {
+export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTemplateFormModalProps) {
   const notify = useNotification();
   const queryClient = useQueryClient();
+  const isEditing = !!initialValues;
 
   const { data: stages = [] } = useQuery({
     queryKey: ['email-templates-pipeline-stages'],
@@ -40,11 +46,20 @@ export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModal
     formState: { errors },
   } = useForm<EmailTemplateFormValues>({ resolver: zodResolver(emailTemplateSchema) });
 
+  // Khi mo modal o che do Edit, dien truoc du lieu
   useEffect(() => {
-    if (open) {
+    if (open && initialValues) {
+      reset({
+        name: initialValues.name,
+        code: initialValues.code,
+        pipelineStageId: initialValues.pipelineStageId ? String(initialValues.pipelineStageId) : '',
+        subjectTemplate: initialValues.subjectTemplate,
+        bodyTemplate: initialValues.bodyTemplate,
+      });
+    } else if (open && !initialValues) {
       reset({ name: '', code: '', pipelineStageId: '', subjectTemplate: '', bodyTemplate: '' });
     }
-  }, [open, reset]);
+  }, [open, initialValues, reset]);
 
   function buildPayload(values: EmailTemplateFormValues) {
     return {
@@ -58,10 +73,16 @@ export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModal
 
   const mutation = useMutation({
     mutationFn: (values: EmailTemplateFormValues) =>
-      createEmailTemplate(buildPayload(values)),
+      isEditing
+        ? updateEmailTemplate(initialValues!.id, buildPayload(values))
+        : createEmailTemplate(buildPayload(values)),
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ['email-templates'] });
-      notify.success(`Da tao template "${saved.name}" thanh cong.`);
+      notify.success(
+        isEditing
+          ? `Da cap nhat template "${saved.name}" (version ${saved.version}).`
+          : `Da tao template "${saved.name}" thanh cong.`,
+      );
       handleClose();
     },
     onError: (error) => {
@@ -86,8 +107,12 @@ export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModal
     <Modal
       open={open}
       onClose={handleClose}
-      title="Tao Template moi"
-      description="Tao moi mot email template de su dung trong quy trinh tuyen dung."
+      title={isEditing ? `Sua Template: ${initialValues?.code}` : 'Tao Template moi'}
+      description={
+        isEditing
+          ? `Version hien tai: ${initialValues?.version}. Su thay doi noi dung se tang version len.`
+          : 'Tao moi mot email template de su dung trong quy trinh tuyen dung.'
+      }
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>
@@ -98,7 +123,7 @@ export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModal
             form="email-template-form"
             isLoading={mutation.isPending}
           >
-            Tao Template
+            {isEditing ? 'Luu thay doi' : 'Tao Template'}
           </Button>
         </>
       }
@@ -122,6 +147,7 @@ export function EmailTemplateFormModal({ open, onClose }: EmailTemplateFormModal
             placeholder="Vi du: EM-01"
             required
             error={errors.code?.message}
+            disabled={isEditing}
             {...register('code')}
           />
         </div>

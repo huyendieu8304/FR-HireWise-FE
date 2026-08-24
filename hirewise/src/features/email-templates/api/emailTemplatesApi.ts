@@ -34,6 +34,11 @@ export function createEmailTemplate(payload: EmailTemplatePayload): Promise<Emai
   return http.post<EmailTemplate>('/admin/email-templates', payload);
 }
 
+/** UC-09 AF-01: PUT /api/admin/email-templates/{id} */
+export function updateEmailTemplate(id: number, payload: EmailTemplatePayload): Promise<EmailTemplate> {
+  return http.put<EmailTemplate>(`/admin/email-templates/${id}`, payload);
+}
+
 
 
 /**
