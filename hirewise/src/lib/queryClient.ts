@@ -9,18 +9,23 @@ import { showErrorToast } from '@/components/ui/Toast/toastBus';
  * (`src/store`), không đưa vào đây.
  *
  * Lỗi từ mọi query/mutation đều là `AppError` (đã chuẩn hóa ở apiClient).
- * `apiClient` đã tự hiện toast cho các nhóm lỗi "tự động" (network, 403, 429,
- * 5xx...). Ở đây ta chỉ toast bổ sung cho lỗi MUTATION chưa được toast — vì
- * mutation luôn cần phản hồi rõ ràng cho hành động của user (vd: submit form
- * thất bại vì lỗi 422 mà không có UI inline nào bắt riêng).
+ * `apiClient` đã tự hiện toast cho các nhóm lỗi "tự động" (network, 403, 423,
+ * 429, 5xx...). Ở đây ta chỉ toast bổ sung cho lỗi MUTATION chưa được toast —
+ * vì mutation luôn cần phản hồi rõ ràng cho hành động của user (vd: submit
+ * form thất bại vì lỗi 400/409 mà không có UI inline nào bắt riêng).
  */
 
 function isSilencedByInterceptor(error: unknown) {
   if (!(error instanceof AppError)) return false;
-  // Các status đã được apiClient tự toast — tránh hiện toast trùng lặp.
+  // Các status đã được apiClient tự toast, HOẶC cố ý để component tự xử lý
+  // UI riêng (401: login hiển thị lỗi inline dưới field mật khẩu; phiên hết
+  // hạn ở nơi khác đã có toast cảnh báo riêng qua authEvents/onUnauthorized)
+  // — tránh hiện toast trùng lặp/thừa.
   return (
     error.isNetworkError ||
+    error.status === 401 ||
     error.status === 403 ||
+    error.status === 423 ||
     error.status === 429 ||
     (error.status !== null && error.status >= 500)
   );

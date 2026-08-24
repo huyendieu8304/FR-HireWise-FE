@@ -1,29 +1,25 @@
 /**
- * Kiểu dữ liệu chuẩn cho toàn bộ giao tiếp API.
- * Backend được kỳ vọng trả về envelope theo đúng shape `ApiSuccessResponse`
- * hoặc `ApiErrorResponse` bên dưới. Nếu backend đổi format, CHỈ cần sửa
- * `src/lib/apiClient.ts` (nơi bóc tách response) — không phải sửa từng nơi gọi API.
+ * Kiểu dữ liệu chuẩn cho toàn bộ giao tiếp API với backend Spring Boot
+ * (`FR-HireWise-BE`). Khớp chính xác theo `ErrorResponse`/`PagedResponseDto`
+ * thật của backend — xem `hirewise-be/src/main/java/.../dto/`.
+ *
+ * Lưu ý: backend KHÔNG bọc response thành công trong envelope `{ data, ... }`
+ * — body trả về chính là DTO thật (vd `POST /auth/login` trả thẳng
+ * `{ accessToken, refreshToken, ... }`, không phải `{ data: { accessToken, ... } } }`).
+ * `apiClient.ts` xử lý được cả 2 kiểu (có/không có field `data`) nên không
+ * cần đổi gì ở đây nếu sau này backend đổi ý bọc envelope.
  */
 
-/** Envelope thành công chuẩn: { data, message?, meta? } */
-export interface ApiSuccessResponse<T> {
-  data: T;
-  message?: string;
-  meta?: {
-    page?: number;
-    pageSize?: number;
-    total?: number;
-    [key: string]: unknown;
-  };
-}
-
-/** Envelope lỗi chuẩn trả về từ backend */
+/** Envelope lỗi chuẩn — khớp `ErrorResponse.java` (GlobalExceptionHandler). */
 export interface ApiErrorResponse {
-  message: string;
-  /** Mã lỗi nghiệp vụ, ví dụ "AUTH_INVALID_CREDENTIALS" */
+  timestamp?: string;
+  status?: number;
+  /** Mã lỗi nghiệp vụ, vd "USER_ALREADY_EXISTS", "INVALID_CREDENTIALS" (xem ErrorCode.java). */
   code?: string;
-  /** Lỗi validate theo từng field, dùng để map vào react-hook-form.setError */
-  errors?: Record<string, string[]>;
+  message: string;
+  path?: string;
+  /** Lỗi validate theo từng field (1 message/field) — Bean Validation trả 400. */
+  fieldErrors?: Record<string, string>;
 }
 
 /**
@@ -34,7 +30,7 @@ export interface ApiErrorResponse {
 export class AppError extends Error {
   readonly status: number | null;
   readonly code?: string;
-  readonly errors?: Record<string, string[]>;
+  readonly fieldErrors?: Record<string, string>;
   /** true nếu lỗi do mất mạng / server không phản hồi (không có response) */
   readonly isNetworkError: boolean;
 
@@ -42,21 +38,24 @@ export class AppError extends Error {
     message: string;
     status?: number | null;
     code?: string;
-    errors?: Record<string, string[]>;
+    fieldErrors?: Record<string, string>;
     isNetworkError?: boolean;
   }) {
     super(params.message);
     this.name = 'AppError';
     this.status = params.status ?? null;
     this.code = params.code;
-    this.errors = params.errors;
+    this.fieldErrors = params.fieldErrors;
     this.isNetworkError = params.isNetworkError ?? false;
   }
 }
 
-export interface PaginatedResult<T> {
-  items: T[];
+/** Khớp `PagedResponseDto<T>` — trả về bởi các endpoint list có phân trang. */
+export interface PagedResponse<T> {
+  content: T[];
   page: number;
-  pageSize: number;
-  total: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
 }

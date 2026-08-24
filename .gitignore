@@ -2,6 +2,13 @@
 # Backlog, Proposal... chỉ lưu local hoặc chia sẻ qua kênh riêng của team.
 Planning/
 
+# Mockup HTML tạm để import vào Figma (mỗi file ~1.7MB do nhúng sẵn font) —
+# không phải source code, không cần versioning. File thiết kế thật nằm ở Figma
+# sau khi import; batch mockup này chỉ mang tính bàn giao một lần.
+figma-mockups/
+
+FR-HireWise-BE/
+
 # OS / editor cruft (áp dụng cho cả repo, ngoài phạm vi hirewise/.gitignore)
 .DS_Store
 Thumbs.db

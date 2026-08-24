@@ -8,17 +8,30 @@ import { persist } from 'zustand/middleware';
  */
 
 export interface AuthUser {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  role: 'HR_ADMIN' | 'RECRUITER' | 'HIRING_MANAGER' | 'INTERVIEWER';
+  /** Khớp `CurrentUserResponseDto.roles` (Set<String>) — 1 user có thể có nhiều role cùng lúc. */
+  roles: string[];
+  /**
+   * Khớp `CurrentUserResponseDto.permissions` (Set<String>) — hợp permission
+   * code của TẤT CẢ role hiện tại, backend đã resolve sẵn từ `role_permissions`
+   * (xem `AuthService#issueLoginResponse`). Chỉ dùng để ẩn/hiện UI (menu, nút bấm...)
+   */
+  permissions: string[];
 }
 
 interface AuthState {
   accessToken: string | null;
+  /** Dùng cho `POST /auth/refresh` khi access token hết hạn — TODO: chưa nối interceptor tự refresh. */
+  refreshToken: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
-  setSession: (params: { accessToken: string; user: AuthUser }) => void;
+  setSession: (params: {
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+  }) => void;
   clearSession: () => void;
 }
 
@@ -26,17 +39,25 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       accessToken: null,
+      refreshToken: null,
       user: null,
       isAuthenticated: false,
-      setSession: ({ accessToken, user }) =>
-        set({ accessToken, user, isAuthenticated: true }),
-      clearSession: () => set({ accessToken: null, user: null, isAuthenticated: false }),
+      setSession: ({ accessToken, refreshToken, user }) =>
+        set({ accessToken, refreshToken, user, isAuthenticated: true }),
+      clearSession: () =>
+        set({
+          accessToken: null,
+          refreshToken: null,
+          user: null,
+          isAuthenticated: false,
+        }),
     }),
     {
       name: 'hirewise-auth',
       // Chỉ nên persist token + user cơ bản, không persist toàn bộ state nhạy cảm khác.
       partialize: (state) => ({
         accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
