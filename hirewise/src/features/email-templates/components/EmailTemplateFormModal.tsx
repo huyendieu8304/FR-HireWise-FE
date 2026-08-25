@@ -18,7 +18,7 @@ import { emailTemplateSchema, type EmailTemplateFormValues } from '../schema';
 import type { EmailTemplate } from '../types';
 import { SUPPORTED_VARIABLES } from './VariablePicker';
 import { EmailTemplatePreviewModal } from './EmailTemplatePreviewModal';
-import { RichTextEditor, type RichTextEditorRef } from './RichTextEditor';
+import { RichTextEditor, formatHtmlForEditor, type RichTextEditorRef } from './RichTextEditor';
 
 export interface EmailTemplateFormModalProps {
   open: boolean;
@@ -28,7 +28,6 @@ export interface EmailTemplateFormModalProps {
 
 type FocusedField = 'subject' | 'body';
 
-// Top các biến hay dùng nhất để hiển thị nhanh dạng chip
 const QUICK_VARIABLES = [
   'Candidate_Name',
   'Job_Title',
@@ -40,16 +39,16 @@ const QUICK_VARIABLES = [
   'Recruiter_Name',
 ];
 
-/** Chuyển đổi text thuần sang HTML có định dạng đoạn văn bản nếu chưa có thẻ HTML */
+/** Chuyển đổi text thuần sang HTML có định dạng đoạn văn bản theo chiều dọc sạch sẽ */
 function formatPlainTextToHtml(text: string): string {
   if (!text) return '';
   if (/<[a-z][\s\S]*>/i.test(text)) {
-    return text; // Đã là HTML
+    return formatHtmlForEditor(text);
   }
   return text
     .split(/\r?\n\r?\n/)
-    .map((p) => `<p>${p.replace(/\r?\n/g, '<br/>')}</p>`)
-    .join('');
+    .map((p) => `<p>${p.replace(/\r?\n/g, '<br/>\n')}</p>`)
+    .join('\n\n');
 }
 
 export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTemplateFormModalProps) {
@@ -100,7 +99,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
         code: '',
         pipelineStageId: '',
         subjectTemplate: '',
-        bodyTemplate: '<p>Xin chào {{Candidate_Name}},</p><p><br></p><p>Trân trọng,<br>{{Company}}</p>',
+        bodyTemplate: '<p>Xin chào {{Candidate_Name}},</p>\n\n<p>Nội dung email...</p>\n\n<p>Trân trọng,<br/>\n{{Company}}</p>',
       });
     }
   }, [open, initialValues, reset]);
@@ -127,7 +126,6 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
         }
       });
     } else {
-      // Chèn vào RichTextEditor
       richTextRef.current?.insertTextAtCursor(varTag);
     }
   }
@@ -338,7 +336,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
               )}
             />
             <p className="text-xs text-neutral-400">
-              💡 Soạn thảo dạng trực quan (WYSIWYG) hoặc bấm nút <code className="bg-neutral-100 px-1 py-0.5 font-mono text-neutral-700">&lt;/&gt; HTML Source</code> để xem và chỉnh sửa mã HTML trực tiếp. Nội dung sẽ được lưu dưới dạng HTML vào database.
+              💡 Soạn thảo dạng trực quan (WYSIWYG) hoặc bấm nút <code className="bg-neutral-100 px-1.5 py-0.5 font-mono font-semibold text-neutral-800 rounded border border-neutral-300">&lt;/&gt;</code> để xem và chỉnh sửa mã HTML trực tiếp theo chiều dọc.
             </p>
           </div>
         </form>

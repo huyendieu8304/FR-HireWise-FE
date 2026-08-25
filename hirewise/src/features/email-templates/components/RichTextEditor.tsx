@@ -33,6 +33,24 @@ export interface RichTextEditorProps {
   minHeight?: string;
 }
 
+/** Format mã HTML theo chiều dọc sạch sẽ, dễ đọc như cấu trúc email */
+export function formatHtmlForEditor(html: string): string {
+  if (!html) return '';
+  return html
+    // Chuẩn hóa ngắt dòng các thẻ block
+    .replace(/<\/p>\s*<p>/gi, '</p>\n\n<p>')
+    .replace(/<br\s*\/?>\s*/gi, '<br/>\n')
+    .replace(/<\/div>\s*<div>/gi, '</div>\n<div>')
+    .replace(/<\/h([1-6])>\s*/gi, '</h$1>\n\n')
+    .replace(/<li[^>]*>/gi, '  <li>')
+    .replace(/<\/li>\s*/gi, '</li>\n')
+    .replace(/<ul[^>]*>/gi, '<ul>\n')
+    .replace(/<\/ul>\s*/gi, '</ul>\n\n')
+    .replace(/<ol[^>]*>/gi, '<ol>\n')
+    .replace(/<\/ol>\s*/gi, '</ol>\n\n')
+    .trim();
+}
+
 export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
   ({ value, onChange, placeholder = 'Nhập nội dung email...', onFocus, onBlur, error, minHeight = '240px' }, ref) => {
     const [mode, setMode] = useState<'visual' | 'code'>('visual');
@@ -40,13 +58,12 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
     const codeEditorRef = useRef<HTMLTextAreaElement | null>(null);
     const savedSelectionRangeRef = useRef<Range | null>(null);
 
-    // Đồng bộ value vào contentEditable khi mở hoặc khi đổi từ ngoài mà không đang focus
+    // Đồng bộ value vào visual contentEditable
     useEffect(() => {
       if (visualEditorRef.current && mode === 'visual') {
-        if (visualEditorRef.current.innerHTML !== value) {
-          // Format text thuần thành <p> nếu không có thẻ html
-          const htmlContent = value || '';
-          visualEditorRef.current.innerHTML = htmlContent;
+        const currentHtml = visualEditorRef.current.innerHTML;
+        if (currentHtml !== value) {
+          visualEditorRef.current.innerHTML = value || '';
         }
       }
     }, [value, mode]);
@@ -82,7 +99,6 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
     const handleVisualInput = () => {
       if (!visualEditorRef.current) return;
       const html = visualEditorRef.current.innerHTML;
-      // Nếu rỗng (chỉ còn <p><br></p> hoặc tương đương)
       const cleanHtml = html === '<p><br></p>' || html === '<br>' ? '' : html;
       onChange(cleanHtml);
     };
@@ -90,6 +106,9 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
     // Xử lý chuyển đổi giữa Visual & Code View
     const toggleMode = () => {
       if (mode === 'visual') {
+        // Chuyển sang Code View: Format HTML theo chiều dọc sạch sẽ
+        const formatted = formatHtmlForEditor(value || visualEditorRef.current?.innerHTML || '');
+        onChange(formatted);
         setMode('code');
         requestAnimationFrame(() => {
           if (codeEditorRef.current) {
@@ -97,6 +116,7 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
           }
         });
       } else {
+        // Chuyển lại Visual Editor
         setMode('visual');
         requestAnimationFrame(() => {
           if (visualEditorRef.current) {
@@ -135,7 +155,6 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
             saveSelection();
             handleVisualInput();
           } else {
-            // Không có range, append vào cuối
             const currentHtml = visualEditorRef.current?.innerHTML || '';
             const newHtml = currentHtml + htmlToInsert;
             if (visualEditorRef.current) visualEditorRef.current.innerHTML = newHtml;
@@ -339,20 +358,19 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
             </button>
           </div>
 
-          {/* Nút Switch HTML Code View </> */}
-          <div className="flex items-center gap-1.5">
+          {/* Nút Switch chuẩn: chỉ 1 biểu tượng </> duy nhất */}
+          <div className="flex items-center">
             <button
               type="button"
               onClick={toggleMode}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold transition shadow-2xs ${
+              className={`flex items-center justify-center rounded px-2.5 py-1 text-xs font-mono font-bold transition shadow-2xs ${
                 mode === 'code'
                   ? 'bg-neutral-900 text-emerald-400 border border-neutral-700 hover:bg-neutral-800'
-                  : 'bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-200'
+                  : 'bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-200 hover:text-neutral-900'
               }`}
-              title={mode === 'code' ? 'Chuyển sang giao diện soạn thảo trực quan (WYSIWYG)' : 'Xem và sửa mã HTML nguồn'}
+              title={mode === 'code' ? 'Chuyển sang soạn thảo trực quan (Visual Editor)' : 'Xem/Sửa mã nguồn HTML (</>)'}
             >
-              <CodeIcon className="size-4" />
-              <span>{mode === 'code' ? 'Visual Editor' : '</> HTML Source'}</span>
+              {'</>'}
             </button>
           </div>
         </div>
@@ -383,7 +401,7 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
               data-placeholder={placeholder}
             />
           ) : (
-            /* HTML Source Code Editor (Dark Mode giống Summernote) */
+            /* HTML Source Code Editor (Dark Mode theo chiều dọc chuẩn email) */
             <div className="relative flex bg-[#1e1e1e] text-emerald-400 font-mono text-sm">
               <textarea
                 ref={codeEditorRef}
@@ -392,7 +410,7 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
                 onChange={(e) => onChange(e.target.value)}
                 onFocus={onFocus}
                 onBlur={onBlur}
-                className="w-full resize-y bg-transparent p-4 text-emerald-300 placeholder-neutral-600 focus:outline-none font-mono leading-relaxed selection:bg-neutral-700"
+                className="w-full resize-y bg-transparent p-4 text-emerald-300 placeholder-neutral-600 focus:outline-none font-mono leading-relaxed selection:bg-neutral-700 whitespace-pre"
                 style={{ minHeight }}
                 placeholder="<p>Nhập mã HTML tại đây...</p>"
                 spellCheck={false}
