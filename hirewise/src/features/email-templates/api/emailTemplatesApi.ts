@@ -44,8 +44,6 @@ export function deleteEmailTemplate(id: number): Promise<void> {
   return http.delete<void>(`/admin/email-templates/${id}`);
 }
 
-
-
 /**
  * UC-09 step 2: GET /api/admin/email-templates/pipeline-stages
  * Lay danh sach stage de hien thi dropdown "Gan Stage".
