@@ -33,7 +33,7 @@ export const emailTemplateSchema = z.object({
     .string()
     .min(1, 'Vui lòng nhập mã template')
     .max(50, 'Mã không vượt quá 50 ký tự')
-    .regex(/^[A-Za-z0-9_\-]+$/, 'Mã chỉ chứa chữ cái, số, dấu gạch ngang hoặc gạch dưới'),
+    .regex(/^[A-Za-z0-9_-]+$/, 'Mã chỉ chứa chữ cái, số, dấu gạch ngang hoặc gạch dưới'),
   pipelineStageId: z.string().optional(),
   subjectTemplate: templateFieldSchema('tiêu đề email', 255),
   bodyTemplate: templateFieldSchema('nội dung email'),

@@ -39,13 +39,17 @@ const QUICK_VARIABLES = [
   'Recruiter_Name',
 ];
 
-/** Chuyển đổi text thuần sang HTML có định dạng đoạn văn bản theo chiều dọc sạch sẽ */
-function formatPlainTextToHtml(text: string): string {
+/** Định dạng nội dung HTML cho Editor */
+function cleanAndFormatHtml(text: string): string {
   if (!text) return '';
-  if (/<[a-z][\s\S]*>/i.test(text)) {
-    return formatHtmlForEditor(text);
+  const str = text.trim();
+
+  if (/<[a-z][\s\S]*>/i.test(str)) {
+    return formatHtmlForEditor(str);
   }
-  return text
+
+  // Nếu hoàn toàn là text thuần, bọc thành các đoạn <p>
+  return str
     .split(/\r?\n\r?\n/)
     .map((p) => `<p>${p.replace(/\r?\n/g, '<br/>\n')}</p>`)
     .join('\n\n');
@@ -56,7 +60,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
   const queryClient = useQueryClient();
   const isEditing = !!initialValues;
 
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<{ subject: string; body: string } | null>(null);
   const [lastActiveField, setLastActiveField] = useState<FocusedField>('body');
 
   const subjectRef = useRef<HTMLInputElement | null>(null);
@@ -74,18 +78,16 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
     handleSubmit,
     reset,
     setError,
-    watch,
+    getValues,
     setValue,
     control,
     formState: { errors },
   } = useForm<EmailTemplateFormValues>({ resolver: zodResolver(emailTemplateSchema) });
 
-  const watchedSubject = watch('subjectTemplate') ?? '';
-  const watchedBody = watch('bodyTemplate') ?? '';
-
   useEffect(() => {
-    if (open && initialValues) {
-      const formattedBody = formatPlainTextToHtml(initialValues.bodyTemplate);
+    if (!open) return;
+    if (initialValues) {
+      const formattedBody = cleanAndFormatHtml(initialValues.bodyTemplate);
       reset({
         name: initialValues.name,
         code: initialValues.code,
@@ -93,7 +95,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
         subjectTemplate: initialValues.subjectTemplate,
         bodyTemplate: formattedBody,
       });
-    } else if (open && !initialValues) {
+    } else {
       reset({
         name: '',
         code: '',
@@ -109,7 +111,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
     const varTag = `{{${varName}}}`;
     if (lastActiveField === 'subject') {
       const el = subjectRef.current;
-      const currentVal = watchedSubject;
+      const currentVal = getValues('subjectTemplate') || '';
       let pos = subjectCursorPosRef.current;
       if (pos < 0 || pos > currentVal.length) pos = currentVal.length;
 
@@ -165,7 +167,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
 
   function handleClose() {
     reset();
-    setIsPreviewOpen(false);
+    setPreviewData(null);
     onClose();
   }
 
@@ -196,8 +198,13 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
             <Button
               variant="outline"
               type="button"
-              onClick={() => setIsPreviewOpen(true)}
-              disabled={!watchedSubject && !watchedBody}
+              onClick={() => {
+                const values = getValues();
+                setPreviewData({
+                  subject: values.subjectTemplate || '',
+                  body: values.bodyTemplate || '',
+                });
+              }}
             >
               <Eye className="size-4" />
               Preview Email
@@ -343,10 +350,10 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
       </Modal>
 
       <EmailTemplatePreviewModal
-        open={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        subjectTemplate={watchedSubject}
-        bodyTemplate={watchedBody}
+        open={!!previewData}
+        onClose={() => setPreviewData(null)}
+        subjectTemplate={previewData?.subject ?? ''}
+        bodyTemplate={previewData?.body ?? ''}
       />
     </>
   );
