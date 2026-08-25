@@ -54,11 +54,6 @@ export function useCloudStorageOAuthCallback(
   const [searchParams, setSearchParams] = useSearchParams();
   const onResultRef = useRef(onResult);
 
-  const connectedParam = searchParams.get('connected');
-  const isPopup =
-    typeof window !== 'undefined' && Boolean(window.opener) && window.opener !== window;
-  const isClosingPopup = connectedParam !== null && isPopup;
-
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);

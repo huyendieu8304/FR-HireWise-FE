@@ -4,6 +4,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ActivatePage } from '@/features/auth/pages/ActivatePage';
+import { JobBoardPage } from '@/features/jobs/pages/JobBoardPage';
+import { ApplyPage } from '@/features/jobs/pages/ApplyPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to={ROUTES.LOGIN} replace /> },
       { path: ROUTES.LOGIN, element: <LoginPage /> },
       { path: ROUTES.ACTIVATE, element: <ActivatePage /> },
+      { path: ROUTES.CAREERS, element: <JobBoardPage /> },
+      { path: ROUTES.CAREERS_APPLY, element: <ApplyPage /> },
     ],
   },
   {
