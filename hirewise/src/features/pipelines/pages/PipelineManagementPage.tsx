@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DotsSixVertical, Plus, Stack } from '@phosphor-icons/react';
+import { DotsSixVertical, Plus, Stack, Trash } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
@@ -14,6 +14,7 @@ import {
 import { STAGE_TYPE_LABELS, type PipelineStage, type PipelineTemplate } from '../types';
 import { CreatePipelineTemplateModal } from '../components/CreatePipelineTemplateModal';
 import { CreatePipelineStageModal } from '../components/CreatePipelineStageModal';
+import { DeleteStageConfirmModal } from '../components/DeleteStageConfirmModal';
 
 const TEMPLATE_STATUS_BADGE_VARIANT = { DRAFT: 'warning', ACTIVE: 'success' } as const;
 
@@ -40,9 +41,9 @@ function moveStage(
 }
 
 /**
- * UC-04/UC-05: HR Admin chọn (hoặc tạo mới) 1 Pipeline Template, xem danh
- * sách Stage hiện tại, thêm Stage mới, và kéo-thả để sắp xếp lại thứ tự
- * Stage. Xóa Stage (UC-06) là use case khác, chưa có ở màn hình này.
+ * UC-04/UC-05/UC-06: HR Admin chọn (hoặc tạo mới) 1 Pipeline Template, xem
+ * danh sách Stage hiện tại, thêm Stage mới, kéo-thả để sắp xếp lại thứ tự
+ * Stage, và xóa Stage không còn dùng nữa.
  */
 export function PipelineManagementPage() {
   const notify = useNotification();
@@ -50,6 +51,7 @@ export function PipelineManagementPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PipelineStage | null>(null);
   const [dragStageId, setDragStageId] = useState<number | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
   const reorderDebounceRef = useRef<number | undefined>(undefined);
@@ -226,6 +228,7 @@ export function PipelineManagementPage() {
                     <th className="px-4 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
                       Kết thúc
                     </th>
+                    <th className="w-10 px-2 py-2.5" aria-hidden="true" />
                   </tr>
                 </thead>
                 <tbody>
@@ -235,7 +238,7 @@ export function PipelineManagementPage() {
                         key={i}
                         className="border-b border-neutral-100 last:border-none"
                       >
-                        <td className="px-4 py-3" colSpan={7}>
+                        <td className="px-4 py-3" colSpan={8}>
                           <Skeleton className="h-6 w-full" />
                         </td>
                       </tr>
@@ -244,7 +247,7 @@ export function PipelineManagementPage() {
                   {!isLoadingStages && stages?.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-4 py-10 text-center text-sm text-neutral-400"
                       >
                         Chưa có Stage nào. Bấm "Thêm Stage" để tạo Stage đầu tiên (vd.
@@ -274,7 +277,7 @@ export function PipelineManagementPage() {
                         setDragOverStageId(null);
                       }}
                       className={cn(
-                        'border-b border-neutral-100 last:border-none',
+                        'group border-b border-neutral-100 last:border-none',
                         // UC-05 Normal Flow bước 3: "highlight vị trí thả tạm thời trong lúc kéo".
                         dragOverStageId === stage.id &&
                           dragStageId !== stage.id &&
@@ -303,6 +306,17 @@ export function PipelineManagementPage() {
                       <td className="px-4 py-3">
                         {stage.terminal && <Badge variant="info">Terminal</Badge>}
                       </td>
+                      <td className="px-2 py-3">
+                        {/* UC-06 Screen Description: "Chỉ hiển thị khi hover dòng Stage". */}
+                        <button
+                          type="button"
+                          aria-label={`Xóa Stage ${stage.name}`}
+                          onClick={() => setDeleteTarget(stage)}
+                          className="hover:text-danger-600 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <Trash className="size-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,11 +332,18 @@ export function PipelineManagementPage() {
         onCreated={handleTemplateCreated}
       />
       {effectiveTemplateId !== null && (
-        <CreatePipelineStageModal
-          open={isStageModalOpen}
-          onClose={() => setIsStageModalOpen(false)}
-          pipelineTemplateId={effectiveTemplateId}
-        />
+        <>
+          <CreatePipelineStageModal
+            open={isStageModalOpen}
+            onClose={() => setIsStageModalOpen(false)}
+            pipelineTemplateId={effectiveTemplateId}
+          />
+          <DeleteStageConfirmModal
+            stage={deleteTarget}
+            pipelineTemplateId={effectiveTemplateId}
+            onClose={() => setDeleteTarget(null)}
+          />
+        </>
       )}
     </div>
   );

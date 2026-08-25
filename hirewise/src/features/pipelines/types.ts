@@ -56,6 +56,9 @@ export interface PipelineStage {
   terminal: boolean;
   slaHours: number | null;
   active: boolean;
+  /** UC-06: số Application đang có current_stage_id trỏ tới Stage này (BR-PIPE-03) —
+   * >0 nghĩa là chặn xóa, không cần gọi API riêng để biết trước khi mở hộp thoại xóa. */
+  applicationCount: number;
   createdAt: string;
   updatedAt: string;
 }

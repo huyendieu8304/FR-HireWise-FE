@@ -34,8 +34,7 @@ export interface CreatePipelineStagePayload {
 
 /**
  * UC-04 main flow bước 2-5: thêm 1 Stage mới vào cuối Template (BR-PIPE-04
- * — backend tự tính `position`, không gửi từ FE). Sắp xếp lại thứ tự
- * (UC-05) và xóa Stage (UC-06) là 2 use case khác, chưa có API.
+ * — backend tự tính `position`, không gửi từ FE).
  */
 export function createPipelineStage(
   templateId: number,
@@ -57,4 +56,13 @@ export function reorderPipelineStages(
   return http.patch<PipelineStage[]>(`/pipeline-templates/${templateId}/stages/reorder`, {
     stageIds,
   });
+}
+
+/**
+ * UC-06 main flow: xóa (soft-delete, `is_active=false`) 1 Stage. Backend
+ * tự chặn (409) nếu đang có Application tham chiếu (BR-PIPE-03/EX-01) và
+ * tự re-index lại `position` các Stage còn lại (BR-PIPE-04).
+ */
+export function deletePipelineStage(templateId: number, stageId: number): Promise<void> {
+  return http.delete<void>(`/pipeline-templates/${templateId}/stages/${stageId}`);
 }
