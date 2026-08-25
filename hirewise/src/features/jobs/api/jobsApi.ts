@@ -52,10 +52,8 @@ export interface SubmitApplicationPayload {
  * UC-17: nộp hồ sơ ứng tuyển (multipart/form-data — 3 field text + 1 file CV).
  * `onUploadProgress` phục vụ thanh tiến trình khi upload (UC-17 "Other Information").
  *
- * KHÔNG tự set header `Content-Type` ở đây: axios tự nhận diện `FormData`
- * và ghi đè header mặc định `application/json` của `apiClient` bằng
- * `multipart/form-data; boundary=...` đúng chuẩn — set tay sẽ làm mất boundary
- * và khiến backend không parse được multipart request.
+ *  ghi đè header `Content-Type` thành `multipart/form-data` ở đây.
+ * Axios (bản 1.x) sẽ tự động sinh thêm `boundary=...` chuẩn xác khi nhận diện body là FormData.
  */
 export function submitApplication(
   jobId: string,
@@ -72,6 +70,9 @@ export function submitApplication(
     `/public/jobs/${jobId}/applications`,
     formData,
     {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
       // Không set `silent` — lỗi 400/404/409 (định dạng CV, job không còn
       // Published...) vốn đã KHÔNG bị apiClient tự toast (xem apiClient.ts),
       // form tự hiển thị inline; lỗi 5xx/network vẫn cần toast mặc định.
