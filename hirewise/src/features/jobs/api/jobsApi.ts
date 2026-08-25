@@ -5,6 +5,7 @@ import type {
   JobDetail,
   JobFilterOptions,
   JobSummary,
+  SubmitApplicationResponse,
 } from '../types';
 
 export interface ListPublicJobsParams {
@@ -47,3 +48,38 @@ export interface SubmitApplicationPayload {
   cvFile: File;
 }
 
+/**
+ * UC-17: nộp hồ sơ ứng tuyển (multipart/form-data — 3 field text + 1 file CV).
+ * `onUploadProgress` phục vụ thanh tiến trình khi upload (UC-17 "Other Information").
+ *
+ * KHÔNG tự set header `Content-Type` ở đây: axios tự nhận diện `FormData`
+ * và ghi đè header mặc định `application/json` của `apiClient` bằng
+ * `multipart/form-data; boundary=...` đúng chuẩn — set tay sẽ làm mất boundary
+ * và khiến backend không parse được multipart request.
+ */
+export function submitApplication(
+  jobId: string,
+  payload: SubmitApplicationPayload,
+  onUploadProgress?: (percent: number) => void,
+): Promise<SubmitApplicationResponse> {
+  const formData = new FormData();
+  formData.append('fullName', payload.fullName);
+  formData.append('email', payload.email);
+  formData.append('phone', payload.phone);
+  formData.append('cvFile', payload.cvFile);
+
+  return http.post<SubmitApplicationResponse>(
+    `/public/jobs/${jobId}/applications`,
+    formData,
+    {
+      // Không set `silent` — lỗi 400/404/409 (định dạng CV, job không còn
+      // Published...) vốn đã KHÔNG bị apiClient tự toast (xem apiClient.ts),
+      // form tự hiển thị inline; lỗi 5xx/network vẫn cần toast mặc định.
+      onUploadProgress: (event) => {
+        if (onUploadProgress && event.total) {
+          onUploadProgress(Math.round((event.loaded * 100) / event.total));
+        }
+      },
+    },
+  );
+}

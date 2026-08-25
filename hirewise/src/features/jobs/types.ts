@@ -41,5 +41,14 @@ export interface JobBoardDepartment {
   name: string;
 }
 
+/** Khớp `JobBoardFilterOptionsResponseDto`. */
+export interface JobFilterOptions {
+  departments: JobBoardDepartment[];
+  employmentTypes: EmploymentType[];
+}
 
-
+/** Khớp `SubmitApplicationResponseDto` — `duplicate=true` ứng với AF-01/ME-23. */
+export interface SubmitApplicationResponse {
+  applicationId: string;
+  duplicate: boolean;
+}
