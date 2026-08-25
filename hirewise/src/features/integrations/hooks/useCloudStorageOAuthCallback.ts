@@ -63,6 +63,14 @@ export function useCloudStorageOAuthCallback(
     onResultRef.current = onResult;
   }, [onResult]);
 
+  const connectedParam = searchParams.get('connected');
+  // `window.opener` không đổi trong vòng đời 1 cửa sổ -> suy ra được NGAY LÚC
+  // RENDER liệu đây có phải popup đang chờ đóng hay không, không cần đồng bộ
+  // bằng setState trong effect (tránh react-hooks/set-state-in-effect).
+  const isPopup =
+    typeof window !== 'undefined' && Boolean(window.opener) && window.opener !== window;
+  const isClosingPopup = connectedParam !== null && isPopup;
+
   useEffect(() => {
     if (connectedParam === null) return;
 

@@ -1,0 +1,61 @@
+/**
+ * Kiểu dữ liệu cho UC-04 (Pipeline Template & Stage Configuration) — khớp
+ * chính xác theo DTO thật của backend (`FR-HireWise-BE/.../dto/`). Xem
+ * `hirewise/docs/GUIDE.md` mục "Gọi API mới" nếu cần đối chiếu quy ước.
+ */
+
+/** Khớp `PipelineTemplateStatus.java`. DRAFT -> ACTIVE (kích hoạt) không thuộc phạm vi UC-04, chưa có UI. */
+export type PipelineTemplateStatus = 'DRAFT' | 'ACTIVE';
+
+/** Khớp `StageType.java` (LV-06). */
+export type StageType =
+  | 'INTAKE'
+  | 'SCREENING'
+  | 'INTERVIEW'
+  | 'OFFER'
+  | 'TERMINAL_SUCCESS'
+  | 'TERMINAL_REJECTED';
+
+export const ALL_STAGE_TYPES: StageType[] = [
+  'INTAKE',
+  'SCREENING',
+  'INTERVIEW',
+  'OFFER',
+  'TERMINAL_SUCCESS',
+  'TERMINAL_REJECTED',
+];
+
+export const STAGE_TYPE_LABELS: Record<StageType, string> = {
+  INTAKE: 'Tiếp nhận hồ sơ',
+  SCREENING: 'Sàng lọc / Đánh giá',
+  INTERVIEW: 'Phỏng vấn',
+  OFFER: 'Chốt offer',
+  TERMINAL_SUCCESS: 'Kết thúc — Thành công',
+  TERMINAL_REJECTED: 'Kết thúc — Bị loại',
+};
+
+/** Khớp `PipelineTemplateResponseDto`. */
+export interface PipelineTemplate {
+  id: number;
+  name: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  status: PipelineTemplateStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Khớp `PipelineStageResponseDto`. */
+export interface PipelineStage {
+  id: number;
+  pipelineTemplateId: number;
+  name: string;
+  code: string;
+  stageType: StageType;
+  position: number;
+  terminal: boolean;
+  slaHours: number | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

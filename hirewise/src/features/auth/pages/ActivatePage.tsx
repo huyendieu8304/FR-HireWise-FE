@@ -39,7 +39,9 @@ export function ActivatePage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ActivateAccountFormValues>({ resolver: zodResolver(activateAccountSchema) });
+  } = useForm<ActivateAccountFormValues>({
+    resolver: zodResolver(activateAccountSchema),
+  });
 
   const activateMutation = useMutation({
     mutationFn: (values: ActivateAccountFormValues) =>

@@ -10,6 +10,7 @@ import {
   PuzzlePiece,
   SignOut,
   SquaresFour,
+  TreeStructure,
   UsersThree,
 } from '@phosphor-icons/react';
 import { ROUTES } from '@/constants/routes';
@@ -69,6 +70,15 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: CloudArrowUp,
     requiredPermission: 'INTEGRATION_MANAGE',
   },
+  // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
+  // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
+  // Kanban ứng viên, UC-23, chưa xây) — mục này là màn hình cấu hình.
+  {
+    to: ROUTES.PIPELINE_TEMPLATES,
+    label: 'Pipeline tuyển dụng',
+    icon: TreeStructure,
+    requiredPermission: 'PIPELINE_MANAGE',
+  },
 ];
 
 /**
@@ -85,7 +95,9 @@ export function AppShell() {
   const notify = useNotification();
   const navigate = useNavigate();
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, user?.permissions));
+  const visibleNavItems = NAV_ITEMS.filter((item) =>
+    isNavItemVisible(item, user?.permissions),
+  );
   const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) =>
     isNavItemVisible(item, user?.permissions),
   );

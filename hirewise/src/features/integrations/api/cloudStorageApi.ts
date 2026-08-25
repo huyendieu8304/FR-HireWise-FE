@@ -3,7 +3,7 @@ import { toProviderPathSegment } from '../types';
 import type { CloudStorageProvider, StorageConnectionStatus } from '../types';
 
 /**
-  * trạng thái kết nối Cloud Storage hiện tại.
+ * trạng thái kết nối Cloud Storage hiện tại.
  * Không bao giờ 404 — "chưa kết nối" là 1 giá trị status bình thường (`connected: false`).
  * Yêu cầu quyền `INTEGRATION_MANAGE` (403 nếu không đủ quyền, đã được `apiClient` tự toast).
  */
