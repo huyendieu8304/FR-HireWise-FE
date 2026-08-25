@@ -12,19 +12,19 @@ import { SUPPORTED_VARIABLES, type SupportedVariable } from './VariablePicker';
 type DummyData = Record<SupportedVariable, string>;
 
 const INITIAL_DUMMY_DATA: DummyData = {
-  Candidate_Name: 'Nguyen Van A',
-  Full_Name: 'Nguyen Van A',
-  Job_Title: 'Backend Developer',
+  Candidate_Name: 'Nguyễn Văn A',
+  Full_Name: 'Nguyễn Văn A',
+  Job_Title: 'Senior Backend Engineer',
   Company: 'HireWise Corp',
   Department_Name: 'Engineering',
   Openings: '2',
   Role_Name: 'Recruiter',
-  Recruiter_Name: 'Tran Thi B',
-  Manager_Name: 'Le Van C',
-  Interviewer_Name: 'Pham Thi D',
+  Recruiter_Name: 'Trần Thị B',
+  Manager_Name: 'Lê Văn C',
+  Interviewer_Name: 'Phạm Thị D',
   Interview_Date: '10/09/2026',
   Interview_Time: '09:00 SA',
-  Interview_Mode: 'Truc tuyen (Google Meet)',
+  Interview_Mode: 'Trực tuyến (Google Meet)',
   Meeting_Location_Or_Link: 'https://meet.google.com/abc-defg-hij',
   Confirm_Link: 'https://hirewise.example.com/confirm/789',
   Booking_Link: 'https://hirewise.example.com/book/456',
@@ -40,81 +40,41 @@ const INITIAL_DUMMY_DATA: DummyData = {
   Job_Approval_Link: 'https://hirewise.example.com/jobs/404/approve',
   Job_Link: 'https://hirewise.example.com/jobs/404',
   Dashboard_Link: 'https://hirewise.example.com/dashboard',
-  Decision: 'phe duyet',
+  Decision: 'phê duyệt',
   Applied_At: '05/09/2026 10:15',
   Reject_Reason_Block: '',
   Custom_Message_Block: '',
-  Channel_Status_List: '- LinkedIn: Thanh cong\n- VietnamWorks: Dang xu ly',
-  Breach_List: '- Nguyen Van X (3 ngay)\n- Tran Thi Y (2 ngay)',
+  Channel_Status_List: '- LinkedIn: Thành công<br/>- VietnamWorks: Đang xử lý',
+  Breach_List: '- Nguyễn Văn X (3 ngày)<br/>- Trần Thị Y (2 ngày)',
   n: '3',
-  Stage_Name: 'Phong van vong 1',
+  Stage_Name: 'Phỏng vấn vòng 1',
 };
-
-// ============================================================
-// Helpers
-// ============================================================
 
 const PLACEHOLDER_RE = /\{\{([^}]+)}}/g;
 
-function renderSegments(
-  template: string,
-  data: DummyData,
-): Array<{ text: string; isError: boolean }> {
-  const parts: Array<{ text: string; isError: boolean }> = [];
-  let lastIndex = 0;
+/**
+ * Merge nội dung HTML/Text với dummy data:
+ * - Biến hợp lệ -> thay thế bằng dữ liệu mẫu
+ * - Biến không hợp lệ -> highlight đỏ theo BR-EMAILTPL-02 / EX-01
+ */
+function renderHtmlContent(template: string, data: DummyData): { html: string; hasError: boolean } {
+  let hasError = false;
+  if (!template) return { html: '', hasError: false };
 
-  for (const match of template.matchAll(PLACEHOLDER_RE)) {
-    const [full, varName] = match;
-    const trimmed = varName.trim() as SupportedVariable;
-    const start = match.index!;
+  const rendered = template.replace(PLACEHOLDER_RE, (fullMatch, rawVarName) => {
+    const varName = rawVarName.trim() as SupportedVariable;
+    const isKnown = (SUPPORTED_VARIABLES as readonly string[]).includes(varName);
 
-    if (start > lastIndex) {
-      parts.push({ text: template.slice(lastIndex, start), isError: false });
+    if (isKnown) {
+      return data[varName] !== undefined ? data[varName] : fullMatch;
+    } else {
+      hasError = true;
+      return `<mark style="background-color: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: 600;" title="Biến không hợp lệ (BR-EMAILTPL-02)">${fullMatch}</mark>`;
     }
+  });
 
-    const known = (SUPPORTED_VARIABLES as readonly string[]).includes(trimmed);
-    parts.push({
-      text: known ? data[trimmed] || `{{${trimmed}}}` : full,
-      isError: !known,
-    });
-
-    lastIndex = start + full.length;
-  }
-
-  if (lastIndex < template.length) {
-    parts.push({ text: template.slice(lastIndex), isError: false });
-  }
-
-  return parts;
+  return { html: rendered, hasError };
 }
-
-// ============================================================
-// Sub-component: rendered text with error highlight
-// ============================================================
-
-function Rendered({ segs }: { segs: Array<{ text: string; isError: boolean }> }) {
-  return (
-    <>
-      {segs.map((seg, i) =>
-        seg.isError ? (
-          <mark
-            key={i}
-            className="rounded bg-danger-100 px-0.5 text-danger-700 font-mono text-sm not-italic"
-            title="Bien khong hop le (BR-EMAILTPL-02)"
-          >
-            {seg.text}
-          </mark>
-        ) : (
-          <span key={i}>{seg.text}</span>
-        ),
-      )}
-    </>
-  );
-}
-
-// ============================================================
-// Props & main component
-// ============================================================
 
 export interface EmailTemplatePreviewModalProps {
   open: boolean;
@@ -123,11 +83,6 @@ export interface EmailTemplatePreviewModalProps {
   bodyTemplate: string;
 }
 
-/**
- * UC-11: Preview modal hien thi email da render voi dummy data.
- * Buoc 1 - nhap dummy data (chi hien thi bien co trong template).
- * Buoc 2 - xem email render (giong giao dien email client).
- */
 export function EmailTemplatePreviewModal({
   open,
   onClose,
@@ -135,14 +90,14 @@ export function EmailTemplatePreviewModal({
   bodyTemplate,
 }: EmailTemplatePreviewModalProps) {
   const [dummyData, setDummyData] = useState<DummyData>(INITIAL_DUMMY_DATA);
-  const [step, setStep] = useState<'data' | 'preview'>('preview');
+  const [step, setStep] = useState<'preview' | 'data'>('preview');
 
   function handleClose() {
     setStep('preview');
     onClose();
   }
 
-  // Chi hien thi bien co trong template (giam nhieu)
+  // Lấy các biến đang được sử dụng trong template
   const usedVars = [
     ...new Set([
       ...[...subjectTemplate.matchAll(PLACEHOLDER_RE)].map((m) => m[1].trim()),
@@ -150,45 +105,45 @@ export function EmailTemplatePreviewModal({
     ]),
   ].filter((v) => (SUPPORTED_VARIABLES as readonly string[]).includes(v)) as SupportedVariable[];
 
-  const subjectSegs = renderSegments(subjectTemplate, dummyData);
-  const bodySegs = renderSegments(bodyTemplate, dummyData);
-  const hasErrors =
-    subjectSegs.some((s) => s.isError) || bodySegs.some((s) => s.isError);
+  const subjectRender = renderHtmlContent(subjectTemplate, dummyData);
+  const bodyRender = renderHtmlContent(bodyTemplate, dummyData);
+  const hasErrors = subjectRender.hasError || bodyRender.hasError;
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Preview Email"
+      title="Xem trước Email (HTML Preview)"
       size="lg"
       footer={
         step === 'preview' ? (
           <>
             <Button variant="outline" onClick={() => setStep('data')}>
-              Chinh du lieu mau
+              Chỉnh dữ liệu mẫu ({usedVars.length} biến)
             </Button>
-            <Button onClick={handleClose}>Dong</Button>
+            <Button onClick={handleClose}>Đóng</Button>
           </>
         ) : (
           <>
-            <Button variant="outline" onClick={handleClose}>Dong</Button>
+            <Button variant="outline" onClick={handleClose}>
+              Đóng
+            </Button>
             <Button onClick={() => setStep('preview')}>
               <Eye className="size-4" />
-              Xem truoc
+              Xem trước
             </Button>
           </>
         )
       }
     >
       {step === 'data' ? (
-        /* ── Buoc 1: nhap du lieu mau - chi bien co trong template ── */
+        /* Bước: Nhập dữ liệu mẫu */
         <div className="flex flex-col gap-4">
           <p className="text-sm text-neutral-500">
-            Dieu chinh du lieu mau de xem preview thay doi.
-            Chi hien bien dang su dung trong template nay.
+            Điều chỉnh dữ liệu mẫu bên dưới để xem email hiển thị thực tế:
           </p>
           {usedVars.length === 0 ? (
-            <p className="text-sm text-neutral-400 italic">Template chua co bien dong nao.</p>
+            <p className="text-sm text-neutral-400 italic">Template hiện chưa chèn biến động nào.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {usedVars.map((v) => (
@@ -197,65 +152,67 @@ export function EmailTemplatePreviewModal({
                   label={v.replace(/_/g, ' ')}
                   value={dummyData[v]}
                   onChange={(e) => setDummyData((prev) => ({ ...prev, [v]: e.target.value }))}
-                  placeholder={`Gia tri cho {{${v}}}`}
+                  placeholder={`Giá trị cho {{${v}}}`}
                 />
               ))}
             </div>
           )}
         </div>
       ) : (
-        /* ── Buoc 2: email client mock ── */
+        /* Bước: Xem trước giao diện Email Client hoàn chỉnh */
         <div className="flex flex-col gap-3">
           {hasErrors && (
             <div className="flex items-center gap-2 rounded-md bg-danger-50 border border-danger-200 px-3 py-2">
-              <span className="text-danger-600 text-xs font-medium">
-                Bien khong hop le duoc highlight do bên duoi (BR-EMAILTPL-02 / EX-01).
+              <span className="text-danger-700 text-xs font-medium">
+                ⚠️ Phát hiện biến không thuộc danh sách hỗ trợ (được highlight đỏ bên dưới theo BR-EMAILTPL-02).
               </span>
             </div>
           )}
 
-          {/* Email card */}
-          <div className="rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
-            {/* Email client top bar */}
-            <div className="bg-neutral-100 border-b border-neutral-200 px-4 py-2.5 flex items-center gap-2">
+          {/* Email mockup window */}
+          <div className="rounded-xl border border-neutral-200 overflow-hidden shadow-sm bg-white">
+            {/* Topbar email app */}
+            <div className="bg-neutral-100 border-b border-neutral-200 px-4 py-2 flex items-center gap-2">
               <div className="flex gap-1.5">
                 <div className="size-3 rounded-full bg-[#ff5f57]" />
                 <div className="size-3 rounded-full bg-[#febc2e]" />
                 <div className="size-3 rounded-full bg-[#28c840]" />
               </div>
-              <span className="mx-auto text-xs text-neutral-400 font-medium">Mail Preview</span>
+              <span className="mx-auto text-xs text-neutral-400 font-medium">HireWise Mail Client</span>
             </div>
 
-            {/* Email header */}
+            {/* Email Header */}
             <div className="bg-white px-5 pt-4 pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex size-9 items-center justify-center rounded-full bg-primary-100 text-primary-600 shrink-0">
+                <div className="flex size-9 items-center justify-center rounded-full bg-primary-100 text-primary-700 shrink-0">
                   <EnvelopeSimple className="size-4" weight="fill" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-neutral-900">HireWise System</p>
+                  <p className="text-sm font-semibold text-neutral-900">HireWise Notification</p>
                   <p className="text-xs text-neutral-400">no-reply@hirewise.com</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-xs text-neutral-400 w-14 shrink-0">Tieu de:</span>
-                <p className="text-sm font-semibold text-neutral-900 leading-snug">
-                  <Rendered segs={subjectSegs} />
-                </p>
+                <span className="text-xs text-neutral-400 w-14 shrink-0">Tiêu đề:</span>
+                <div
+                  className="text-sm font-semibold text-neutral-900 leading-snug"
+                  dangerouslySetInnerHTML={{ __html: subjectRender.html }}
+                />
               </div>
             </div>
 
-            {/* Email body */}
-            <div className="bg-white px-5 py-5 max-h-72 overflow-y-auto">
-              <div className="text-sm text-neutral-800 whitespace-pre-wrap leading-relaxed">
-                <Rendered segs={bodySegs} />
-              </div>
+            {/* Email Body rendered as HTML */}
+            <div className="bg-white px-6 py-5 max-h-80 overflow-y-auto">
+              <div
+                className="prose prose-sm max-w-none text-neutral-800 leading-relaxed font-sans"
+                dangerouslySetInnerHTML={{ __html: bodyRender.html }}
+              />
             </div>
 
-            {/* Footer bar */}
+            {/* Footer mockup */}
             <div className="bg-neutral-50 border-t border-neutral-100 px-5 py-2.5">
               <p className="text-[11px] text-neutral-400">
-                Day la ban xem truoc email — du lieu mau, khong phai email that.
+                Đây là bản xem trước định dạng HTML thực tế sẽ được gửi tới hòm thư ứng viên / nhân sự.
               </p>
             </div>
           </div>
@@ -266,7 +223,7 @@ export function EmailTemplatePreviewModal({
             className="flex items-center gap-1 text-xs text-primary-600 hover:underline self-start"
           >
             <ArrowLeft className="size-3" />
-            Chinh du lieu mau
+            Chỉnh sửa dữ liệu mẫu ({usedVars.length} biến)
           </button>
         </div>
       )}

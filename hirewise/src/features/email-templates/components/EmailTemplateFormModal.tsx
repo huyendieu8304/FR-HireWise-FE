@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, Code } from '@phosphor-icons/react';
@@ -18,6 +18,7 @@ import { emailTemplateSchema, type EmailTemplateFormValues } from '../schema';
 import type { EmailTemplate } from '../types';
 import { SUPPORTED_VARIABLES } from './VariablePicker';
 import { EmailTemplatePreviewModal } from './EmailTemplatePreviewModal';
+import { RichTextEditor, type RichTextEditorRef } from './RichTextEditor';
 
 export interface EmailTemplateFormModalProps {
   open: boolean;
@@ -39,6 +40,18 @@ const QUICK_VARIABLES = [
   'Recruiter_Name',
 ];
 
+/** Chuyển đổi text thuần sang HTML có định dạng đoạn văn bản nếu chưa có thẻ HTML */
+function formatPlainTextToHtml(text: string): string {
+  if (!text) return '';
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return text; // Đã là HTML
+  }
+  return text
+    .split(/\r?\n\r?\n/)
+    .map((p) => `<p>${p.replace(/\r?\n/g, '<br/>')}</p>`)
+    .join('');
+}
+
 export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTemplateFormModalProps) {
   const notify = useNotification();
   const queryClient = useQueryClient();
@@ -48,12 +61,8 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
   const [lastActiveField, setLastActiveField] = useState<FocusedField>('body');
 
   const subjectRef = useRef<HTMLInputElement | null>(null);
-  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
-  const cursorPositionRef = useRef<{ field: FocusedField; start: number; end: number }>({
-    field: 'body',
-    start: 0,
-    end: 0,
-  });
+  const richTextRef = useRef<RichTextEditorRef | null>(null);
+  const subjectCursorPosRef = useRef<number>(0);
 
   const { data: stages = [] } = useQuery({
     queryKey: ['email-templates-pipeline-stages'],
@@ -68,6 +77,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
     setError,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<EmailTemplateFormValues>({ resolver: zodResolver(emailTemplateSchema) });
 
@@ -76,61 +86,50 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
 
   useEffect(() => {
     if (open && initialValues) {
+      const formattedBody = formatPlainTextToHtml(initialValues.bodyTemplate);
       reset({
         name: initialValues.name,
         code: initialValues.code,
         pipelineStageId: initialValues.pipelineStageId ? String(initialValues.pipelineStageId) : '',
         subjectTemplate: initialValues.subjectTemplate,
-        bodyTemplate: initialValues.bodyTemplate,
+        bodyTemplate: formattedBody,
       });
-      cursorPositionRef.current = {
-        field: 'body',
-        start: initialValues.bodyTemplate.length,
-        end: initialValues.bodyTemplate.length,
-      };
     } else if (open && !initialValues) {
-      reset({ name: '', code: '', pipelineStageId: '', subjectTemplate: '', bodyTemplate: '' });
-      cursorPositionRef.current = { field: 'body', start: 0, end: 0 };
+      reset({
+        name: '',
+        code: '',
+        pipelineStageId: '',
+        subjectTemplate: '',
+        bodyTemplate: '<p>Xin chào {{Candidate_Name}},</p><p><br></p><p>Trân trọng,<br>{{Company}}</p>',
+      });
     }
   }, [open, initialValues, reset]);
 
-  /** Lưu vị trí con trỏ liên tục */
-  function trackCursor(field: FocusedField) {
-    setLastActiveField(field);
-    const el = field === 'subject' ? subjectRef.current : bodyRef.current;
-    if (!el) return;
-    cursorPositionRef.current = {
-      field,
-      start: el.selectionStart ?? el.value.length,
-      end: el.selectionEnd ?? el.value.length,
-    };
-  }
-
-  /** Chèn biến động vào vị trí con trỏ */
+  /** Chèn biến động vào vị trí con trỏ của Subject hoặc RichTextEditor Body */
   function insertVariable(varName: string) {
     const varTag = `{{${varName}}}`;
-    const targetField = cursorPositionRef.current.field || lastActiveField;
-    const isSubject = targetField === 'subject';
-    const formFieldName = isSubject ? 'subjectTemplate' : 'bodyTemplate';
-    const currentVal = isSubject ? watchedSubject : watchedBody;
-    const el = isSubject ? subjectRef.current : bodyRef.current;
+    if (lastActiveField === 'subject') {
+      const el = subjectRef.current;
+      const currentVal = watchedSubject;
+      let pos = subjectCursorPosRef.current;
+      if (pos < 0 || pos > currentVal.length) pos = currentVal.length;
 
-    let { start, end } = cursorPositionRef.current;
-    if (start < 0 || start > currentVal.length) start = currentVal.length;
-    if (end < 0 || end > currentVal.length) end = currentVal.length;
+      const newVal = currentVal.slice(0, pos) + varTag + currentVal.slice(pos);
+      setValue('subjectTemplate', newVal, { shouldValidate: true, shouldDirty: true });
 
-    const newVal = currentVal.slice(0, start) + varTag + currentVal.slice(end);
-    setValue(formFieldName, newVal, { shouldValidate: true, shouldDirty: true });
+      const newPos = pos + varTag.length;
+      subjectCursorPosRef.current = newPos;
 
-    const newPos = start + varTag.length;
-    cursorPositionRef.current = { field: targetField, start: newPos, end: newPos };
-
-    requestAnimationFrame(() => {
-      if (el) {
-        el.focus();
-        el.setSelectionRange(newPos, newPos);
-      }
-    });
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus();
+          el.setSelectionRange(newPos, newPos);
+        }
+      });
+    } else {
+      // Chèn vào RichTextEditor
+      richTextRef.current?.insertTextAtCursor(varTag);
+    }
   }
 
   const mutation = useMutation({
@@ -178,7 +177,6 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
   }));
 
   const { ref: subjectRHFRef, ...subjectRest } = register('subjectTemplate');
-  const { ref: bodyRHFRef, ...bodyRest } = register('bodyTemplate');
 
   return (
     <>
@@ -189,7 +187,7 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
         description={
           isEditing
             ? `Version hiện tại: v${initialValues?.version} — thay đổi nội dung sẽ tăng version tự động.`
-            : 'Tạo mẫu email tự động cho quy trình tuyển dụng.'
+            : 'Tạo mẫu email HTML tự động cho quy trình tuyển dụng.'
         }
         size="xl"
         footer={
@@ -255,11 +253,18 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
                 type="text"
                 placeholder="[{{Company}}] Thư mời phỏng vấn vị trí {{Job_Title}}"
                 className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 focus:outline-none"
-                onFocus={() => trackCursor('subject')}
-                onClick={() => trackCursor('subject')}
-                onKeyUp={() => trackCursor('subject')}
-                onSelect={() => trackCursor('subject')}
-                onBlur={() => trackCursor('subject')}
+                onFocus={() => {
+                  setLastActiveField('subject');
+                }}
+                onSelect={(e) => {
+                  subjectCursorPosRef.current = e.currentTarget.selectionStart ?? 0;
+                }}
+                onKeyUp={(e) => {
+                  subjectCursorPosRef.current = e.currentTarget.selectionStart ?? 0;
+                }}
+                onClick={(e) => {
+                  subjectCursorPosRef.current = e.currentTarget.selectionStart ?? 0;
+                }}
                 ref={(el) => {
                   subjectRHFRef(el);
                   subjectRef.current = el;
@@ -272,17 +277,16 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
             </div>
           </div>
 
-          {/* Row 3: Message Body + Variable Toolbar */}
+          {/* Row 3: Message Body (Rich Text & HTML Switcher) */}
           <div className="flex flex-col gap-2">
-            {/* Toolbar chèn biến */}
+            {/* Toolbar chèn biến động */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-md border border-b-0 border-neutral-300 bg-neutral-50 px-3 py-2">
               <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-600">
                 <Code className="size-3.5 text-primary-600" />
-                <span>Chèn biến động ({lastActiveField === 'subject' ? 'Subject' : 'Body'}):</span>
+                <span>Chèn biến ({lastActiveField === 'subject' ? 'Subject' : 'Body'}):</span>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                {/* Nút chip nhanh */}
                 {QUICK_VARIABLES.map((v) => (
                   <button
                     key={v}
@@ -295,14 +299,13 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
                   </button>
                 ))}
 
-                {/* Dropdown danh sách tất cả các biến */}
                 <select
                   aria-label="Chọn biến động khác"
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) {
                       insertVariable(e.target.value);
-                      e.target.value = ''; // Reset về placeholder
+                      e.target.value = '';
                     }
                   }}
                   className="rounded border border-primary-300 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-800 hover:bg-primary-100 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
@@ -319,27 +322,23 @@ export function EmailTemplateFormModal({ open, onClose, initialValues }: EmailTe
               </div>
             </div>
 
-            {/* Textarea body */}
-            <textarea
-              id="bodyTemplate"
-              className="min-h-[220px] w-full resize-y rounded-b-md border border-neutral-300 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 font-mono leading-relaxed transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 focus:outline-none"
-              placeholder={'Xin chào {{Candidate_Name}},\n\nNội dung email của bạn...'}
-              onFocus={() => trackCursor('body')}
-              onClick={() => trackCursor('body')}
-              onKeyUp={() => trackCursor('body')}
-              onSelect={() => trackCursor('body')}
-              onBlur={() => trackCursor('body')}
-              ref={(el) => {
-                bodyRHFRef(el);
-                bodyRef.current = el;
-              }}
-              {...bodyRest}
+            {/* Rich Text Editor với HTML Source Code Switch */}
+            <Controller
+              name="bodyTemplate"
+              control={control}
+              render={({ field }) => (
+                <RichTextEditor
+                  ref={richTextRef}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onFocus={() => setLastActiveField('body')}
+                  error={errors.bodyTemplate?.message}
+                  minHeight="220px"
+                />
+              )}
             />
-            {errors.bodyTemplate && (
-              <p className="text-xs text-danger-600">{errors.bodyTemplate.message}</p>
-            )}
             <p className="text-xs text-neutral-400">
-              💡 Bấm vào ô Subject hoặc Body, sau đó click biến trên thanh công cụ để chèn vào vị trí con trỏ.
+              💡 Soạn thảo dạng trực quan (WYSIWYG) hoặc bấm nút <code className="bg-neutral-100 px-1 py-0.5 font-mono text-neutral-700">&lt;/&gt; HTML Source</code> để xem và chỉnh sửa mã HTML trực tiếp. Nội dung sẽ được lưu dưới dạng HTML vào database.
             </p>
           </div>
         </form>
