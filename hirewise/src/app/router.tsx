@@ -6,6 +6,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ActivatePage } from '@/features/auth/pages/ActivatePage';
 import { JobBoardPage } from '@/features/jobs/pages/JobBoardPage';
 import { ApplyPage } from '@/features/jobs/pages/ApplyPage';
+import { ApprovalListPage } from '@/features/jobs/pages/ApprovalListPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
@@ -48,11 +49,15 @@ export const router = createBrowserRouter([
             element: <CloudStorageIntegrationPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
-          { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />,},
+          { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />, },
           { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
+          /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */
+          { path: ROUTES.JOB_APPROVALS, element: <ApprovalListPage /> },
         ],
       },
     ],
   },
 ]);
+
+
