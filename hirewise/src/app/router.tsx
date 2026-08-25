@@ -4,11 +4,14 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { ActivatePage } from '@/features/auth/pages/ActivatePage';
+import { JobBoardPage } from '@/features/jobs/pages/JobBoardPage';
+import { ApplyPage } from '@/features/jobs/pages/ApplyPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
+import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -28,6 +31,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to={ROUTES.LOGIN} replace /> },
       { path: ROUTES.LOGIN, element: <LoginPage /> },
       { path: ROUTES.ACTIVATE, element: <ActivatePage /> },
+      { path: ROUTES.CAREERS, element: <JobBoardPage /> },
+      { path: ROUTES.CAREERS_APPLY, element: <ApplyPage /> },
     ],
   },
   {
@@ -43,6 +48,8 @@ export const router = createBrowserRouter([
             element: <CloudStorageIntegrationPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
+          { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />,},
+          { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
         ],
       },

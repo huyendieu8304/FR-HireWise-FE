@@ -10,7 +10,7 @@ export interface ModalProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   /** Cho phép đóng khi click ra ngoài / nhấn Esc. Tắt khi cần user bắt buộc chọn 1 action. */
   dismissible?: boolean;
 }
@@ -19,6 +19,7 @@ const SIZE_CLASSES = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
 };
 
 /**
@@ -77,7 +78,7 @@ export function Modal({
         aria-labelledby={title ? 'modal-title' : undefined}
         tabIndex={-1}
         className={cn(
-          'shadow-elevation-4 bg-neutral-0 relative z-(--z-index-modal) w-full rounded-lg outline-none',
+          'shadow-elevation-4 bg-neutral-0 relative z-(--z-index-modal) w-full rounded-lg outline-none flex flex-col max-h-[90dvh]',
           SIZE_CLASSES[size],
         )}
       >
@@ -106,7 +107,7 @@ export function Modal({
           </div>
         )}
 
-        <div className="px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
           <div className="flex justify-end gap-3 border-t border-neutral-200 px-6 py-4">

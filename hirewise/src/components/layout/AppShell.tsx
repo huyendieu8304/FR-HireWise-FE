@@ -5,6 +5,7 @@ import {
   CaretDown,
   ChartBar,
   CloudArrowUp,
+  EnvelopeSimple,
   Kanban,
   PuzzlePiece,
   SignOut,
@@ -54,6 +55,13 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Người dùng & Phân quyền',
     icon: UsersThree,
     requiredPermission: 'USER_VIEW',
+  },
+  // UC-09: quản lý email template.
+  {
+    to: ROUTES.SETTINGS_EMAIL_TEMPLATES,
+    label: 'Email Template',
+    icon: EnvelopeSimple,
+    requiredPermission: 'EMAIL_TEMPLATE_MANAGE',
   },
   //CloudStorageIntegrationService yêu cầu INTEGRATION_MANAGE.
   {
