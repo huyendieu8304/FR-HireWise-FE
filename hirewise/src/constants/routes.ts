@@ -12,4 +12,5 @@ export const ROUTES = {
   CAREERS: '/careers',
   SETTINGS_INTEGRATIONS: '/settings/integrations',
   PIPELINE_TEMPLATES: '/settings/pipeline-templates',
+  SETTINGS_EMAIL_TEMPLATES: '/settings/email-templates',
 } as const;
