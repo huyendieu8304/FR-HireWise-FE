@@ -74,7 +74,9 @@ export function LoginPage() {
           </p>
 
           <form
-            onSubmit={handleSubmit((values) => loginMutation.mutate(values as LoginPayload))}
+            onSubmit={handleSubmit((values) =>
+              loginMutation.mutate(values as LoginPayload),
+            )}
             className="mt-6 flex flex-col gap-4"
             noValidate
           >

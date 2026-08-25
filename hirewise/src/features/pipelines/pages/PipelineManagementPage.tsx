@@ -1,28 +1,58 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Stack } from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DotsSixVertical, Plus, Stack } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { cn } from '@/utils/cn';
-import { listPipelineStages, listPipelineTemplates } from '../api/pipelinesApi';
-import { STAGE_TYPE_LABELS, type PipelineTemplate } from '../types';
+import { useNotification } from '@/hooks/useNotification';
+import {
+  listPipelineStages,
+  listPipelineTemplates,
+  reorderPipelineStages,
+} from '../api/pipelinesApi';
+import { STAGE_TYPE_LABELS, type PipelineStage, type PipelineTemplate } from '../types';
 import { CreatePipelineTemplateModal } from '../components/CreatePipelineTemplateModal';
 import { CreatePipelineStageModal } from '../components/CreatePipelineStageModal';
 
 const TEMPLATE_STATUS_BADGE_VARIANT = { DRAFT: 'warning', ACTIVE: 'success' } as const;
 
+/** Debounce cho lần gọi API lưu vị trí — SRS UC-05 "Other Information": tránh gửi
+ * quá nhiều request nếu HR Admin kéo-thả nhiều Stage liên tiếp thật nhanh. */
+const REORDER_SAVE_DEBOUNCE_MS = 400;
+
+/** BR-PIPE-04: di chuyển 1 Stage tới vị trí của `targetId`, tính lại `position`
+ * hiển thị (1-based) cho TOÀN BỘ danh sách ngay lập tức — dùng cho optimistic
+ * update, giá trị `position` chính thức vẫn do backend trả về sau khi lưu. */
+function moveStage(
+  stages: PipelineStage[],
+  draggedId: number,
+  targetId: number,
+): PipelineStage[] {
+  const fromIndex = stages.findIndex((s) => s.id === draggedId);
+  const toIndex = stages.findIndex((s) => s.id === targetId);
+  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return stages;
+
+  const next = [...stages];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next.map((stage, index) => ({ ...stage, position: index + 1 }));
+}
+
 /**
- * UC-04: HR Admin chọn (hoặc tạo mới) 1 Pipeline Template, xem danh sách
- * Stage hiện tại, và thêm Stage mới. Sắp xếp lại thứ tự Stage (UC-05,
- * kéo-thả) và xóa Stage (UC-06) là 2 use case khác, chưa có ở màn hình
- * này — danh sách Stage bên phải hiển thị READ-ONLY theo đúng `position`
- * backend trả về.
+ * UC-04/UC-05: HR Admin chọn (hoặc tạo mới) 1 Pipeline Template, xem danh
+ * sách Stage hiện tại, thêm Stage mới, và kéo-thả để sắp xếp lại thứ tự
+ * Stage. Xóa Stage (UC-06) là use case khác, chưa có ở màn hình này.
  */
 export function PipelineManagementPage() {
+  const notify = useNotification();
+  const queryClient = useQueryClient();
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [dragStageId, setDragStageId] = useState<number | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
+  const reorderDebounceRef = useRef<number | undefined>(undefined);
 
   const { data: templates, isLoading: isLoadingTemplates } = useQuery({
     queryKey: ['pipeline-templates'],
@@ -35,11 +65,45 @@ export function PipelineManagementPage() {
   const effectiveTemplateId = selectedTemplateId ?? templates?.[0]?.id ?? null;
   const selectedTemplate = templates?.find((t) => t.id === effectiveTemplateId) ?? null;
 
+  const stagesQueryKey = ['pipeline-stages', effectiveTemplateId];
   const { data: stages, isLoading: isLoadingStages } = useQuery({
-    queryKey: ['pipeline-stages', effectiveTemplateId],
+    queryKey: stagesQueryKey,
     queryFn: () => listPipelineStages(effectiveTemplateId!),
     enabled: effectiveTemplateId !== null,
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: (stageIds: number[]) =>
+      reorderPipelineStages(effectiveTemplateId!, stageIds),
+    onSuccess: (updatedStages) => {
+      // Đồng bộ lại `position` CHÍNH THỨC từ backend, thay cho giá trị optimistic.
+      queryClient.setQueryData(stagesQueryKey, updatedStages);
+    },
+    onError: (error) => {
+      // EX-01: lưu thất bại giữa chừng — backend đã tự rollback transaction
+      // (BR-PIPE-04), phía FE chỉ cần bỏ thứ tự optimistic, lấy lại thứ tự
+      // thật từ server (đúng "giữ nguyên thứ tự cũ" theo SRS).
+      notify.error(error);
+      queryClient.invalidateQueries({ queryKey: stagesQueryKey });
+    },
+  });
+
+  function handleDropOn(targetStageId: number) {
+    const draggedId = dragStageId;
+    setDragStageId(null);
+    setDragOverStageId(null);
+    if (draggedId === null || draggedId === targetStageId || !stages) return;
+
+    const reordered = moveStage(stages, draggedId, targetStageId);
+    if (reordered === stages) return;
+    // Hiện ngay thứ tự mới (optimistic) — không chờ round-trip API mới thấy phản hồi.
+    queryClient.setQueryData(stagesQueryKey, reordered);
+
+    window.clearTimeout(reorderDebounceRef.current);
+    reorderDebounceRef.current = window.setTimeout(() => {
+      reorderMutation.mutate(reordered.map((s) => s.id));
+    }, REORDER_SAVE_DEBOUNCE_MS);
+  }
 
   function handleTemplateCreated(template: PipelineTemplate) {
     setIsTemplateModalOpen(false);
@@ -143,6 +207,7 @@ export function PipelineManagementPage() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <th className="w-8 px-2 py-2.5" aria-hidden="true" />
                     <th className="w-12 px-4 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
                       #
                     </th>
@@ -170,7 +235,7 @@ export function PipelineManagementPage() {
                         key={i}
                         className="border-b border-neutral-100 last:border-none"
                       >
-                        <td className="px-4 py-3" colSpan={6}>
+                        <td className="px-4 py-3" colSpan={7}>
                           <Skeleton className="h-6 w-full" />
                         </td>
                       </tr>
@@ -179,7 +244,7 @@ export function PipelineManagementPage() {
                   {!isLoadingStages && stages?.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-10 text-center text-sm text-neutral-400"
                       >
                         Chưa có Stage nào. Bấm "Thêm Stage" để tạo Stage đầu tiên (vd.
@@ -191,8 +256,35 @@ export function PipelineManagementPage() {
                   {stages?.map((stage) => (
                     <tr
                       key={stage.id}
-                      className="border-b border-neutral-100 last:border-none"
+                      draggable
+                      onDragStart={() => setDragStageId(stage.id)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={() => setDragOverStageId(stage.id)}
+                      onDragLeave={() =>
+                        setDragOverStageId((current) =>
+                          current === stage.id ? null : current,
+                        )
+                      }
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handleDropOn(stage.id);
+                      }}
+                      onDragEnd={() => {
+                        setDragStageId(null);
+                        setDragOverStageId(null);
+                      }}
+                      className={cn(
+                        'border-b border-neutral-100 last:border-none',
+                        // UC-05 Normal Flow bước 3: "highlight vị trí thả tạm thời trong lúc kéo".
+                        dragOverStageId === stage.id &&
+                          dragStageId !== stage.id &&
+                          'bg-primary-50',
+                        dragStageId === stage.id && 'opacity-50',
+                      )}
                     >
+                      <td className="cursor-grab px-2 py-3 text-neutral-300 active:cursor-grabbing">
+                        <DotsSixVertical className="size-4" />
+                      </td>
                       <td className="px-4 py-3 text-sm text-neutral-500">
                         {stage.position}
                       </td>

@@ -43,3 +43,18 @@ export function createPipelineStage(
 ): Promise<PipelineStage> {
   return http.post<PipelineStage>(`/pipeline-templates/${templateId}/stages`, payload);
 }
+
+/**
+ * UC-05 main flow: sắp xếp lại toàn bộ Stage của 1 Template trong 1 lần
+ * gọi. `stageIds` PHẢI là đúng và đủ toàn bộ id Stage hiện có của Template
+ * (không thiếu, không thừa, không lặp), theo đúng thứ tự mới mong muốn —
+ * backend tự gán `position = index + 1` cho từng phần tử (BR-PIPE-04).
+ */
+export function reorderPipelineStages(
+  templateId: number,
+  stageIds: number[],
+): Promise<PipelineStage[]> {
+  return http.patch<PipelineStage[]>(`/pipeline-templates/${templateId}/stages/reorder`, {
+    stageIds,
+  });
+}
