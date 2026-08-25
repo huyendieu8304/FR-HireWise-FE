@@ -9,6 +9,7 @@ import { ApplyPage } from '@/features/jobs/pages/ApplyPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
+import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { ROUTES } from '@/constants/routes';
 
@@ -41,7 +42,11 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
           { path: ROUTES.USERS, element: <UserManagementPage /> },
-          { path: ROUTES.SETTINGS_INTEGRATIONS, element: <CloudStorageIntegrationPage />,},
+          {
+            path: ROUTES.SETTINGS_INTEGRATIONS,
+            element: <CloudStorageIntegrationPage />,
+          },
+          { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
         ],
       },
