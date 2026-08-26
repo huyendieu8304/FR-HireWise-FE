@@ -53,13 +53,15 @@ export interface SubmitApplicationResponse {
   duplicate: boolean;
 }
 
+import type { PipelineStage } from '@/features/pipelines/types';
+
 // ---------------------------------------------------------------------------
-// UC-14: Hiring Manager – danh sách Job đang chờ duyệt
+// UC-14: Hiring Manager – danh sách Job cần xem xét phê duyệt
 // ---------------------------------------------------------------------------
 
 /**
  * Khớp `PendingApprovalJobSummaryResponseDto` — 1 dòng trong bảng UC-14.
- * Các cột hiển thị: Chức danh, Phòng ban, Số lượng chỉ tiêu, Người tạo, Ngày gửi.
+ * Các cột hiển thị: Chức danh, Phòng ban, Số lượng chỉ tiêu, Người tạo, Ngày gửi, Trạng thái.
  */
 export interface PendingApprovalJobSummary {
   /** UUID của job position — dùng để navigate sang UC-15 khi bấm vào dòng. */
@@ -79,5 +81,46 @@ export interface PendingApprovalJobSummary {
    * Map từ `JobPosition.updatedAt` phía backend.
    */
   submittedAt: string;
+  /** Trạng thái hiện tại của job (PENDING_APPROVAL, APPROVED, REJECTED...). */
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PUBLISHED' | 'CLOSED';
+  /** Tên quy trình tuyển dụng (Pipeline Template) nếu có. */
+  pipelineTemplateName: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// UC-15: Hiring Manager – Phê duyệt / Từ chối yêu cầu tuyển dụng
+// ---------------------------------------------------------------------------
+
+/** Khớp `JobApprovalDetailResponseDto` — chi tiết đầy đủ khi Manager xem xét duyệt (UC-15). */
+export interface JobApprovalDetail {
+  id: string;
+  title: string;
+  departmentName: string | null;
+  openings: number;
+  employmentType: EmploymentType | null;
+  location: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  applicationDeadline: string | null;
+  description: string | null;
+  requirements: string | null;
+  benefits: string | null;
+  createdByUserName: string | null;
+  submittedAt: string;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PUBLISHED' | 'CLOSED';
+  /** ID của Pipeline Template. */
+  pipelineTemplateId: number | null;
+  /** Tên của Pipeline Template. */
+  pipelineTemplateName: string | null;
+  /** Danh sách các bước trong quy trình tuyển dụng. */
+  pipelineStages: PipelineStage[];
+}
+
+/** Body gửi lên khi từ chối Job (UC-15 AF-01). */
+export interface RejectJobPayload {
+  /** Lý do từ chối — tối thiểu 10 ký tự (BR-APR-02 / ME-21). */
+  reason: string;
+}
+
+
 
