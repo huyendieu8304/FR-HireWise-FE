@@ -10,6 +10,7 @@ import { ApprovalListPage } from '@/features/jobs/pages/ApprovalListPage';
 import { ApprovalDetailPage } from '@/features/jobs/pages/ApprovalDetailPage';
 import { JobListPage } from '@/features/jobs/pages/JobListPage';
 import { JobDetailPage } from '@/features/jobs/pages/JobDetailPage';
+import { JobFormPage } from '@/features/jobs/pages/JobFormPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
@@ -54,6 +55,9 @@ export const router = createBrowserRouter([
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
           /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
           { path: ROUTES.JOBS, element: <JobListPage /> },
+          /** UC-12: tạo mới / lưu nháp lại Job Position — cùng 1 trang form. */
+          { path: ROUTES.JOB_NEW, element: <JobFormPage /> },
+          { path: ROUTES.JOB_EDIT, element: <JobFormPage /> },
           { path: ROUTES.JOB_DETAIL, element: <JobDetailPage /> },
           { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },

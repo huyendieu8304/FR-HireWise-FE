@@ -1,6 +1,11 @@
 import { http } from '@/lib/apiClient';
 import type { PagedResponse } from '@/types/api';
-import type { InternalJobDetail, InternalJobSummary, JobPositionStatus } from '../types';
+import type {
+  InternalJobDetail,
+  InternalJobSummary,
+  JobPositionFormPayload,
+  JobPositionStatus,
+} from '../types';
 
 export interface ListInternalJobsParams {
   page?: number;
@@ -35,4 +40,20 @@ export function listInternalJobs(
 /** Chi tiết đầy đủ 1 Job Position — dùng cho tab "Mô tả chi tiết". */
 export function getInternalJobDetail(jobId: string): Promise<InternalJobDetail> {
   return http.get<InternalJobDetail>(`/jobs/${jobId}`);
+}
+
+/** UC-12 normal flow: tạo Job Position mới (luôn ở trạng thái Draft, tự gán Recruiter = người gọi). */
+export function createInternalJob(payload: JobPositionFormPayload): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>('/jobs', payload);
+}
+
+/**
+ * UC-12 AF-01: "Lưu nháp" lại 1 Job đang Draft/Rejected — gửi lại NGUYÊN
+ * form (không phải patch từng phần), khớp cách backend xử lý.
+ */
+export function updateInternalJob(
+  jobId: string,
+  payload: JobPositionFormPayload,
+): Promise<InternalJobDetail> {
+  return http.patch<InternalJobDetail>(`/jobs/${jobId}`, payload);
 }

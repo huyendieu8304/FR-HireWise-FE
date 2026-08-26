@@ -38,3 +38,48 @@ export const applyFormSchema = z.object({
 });
 
 export type ApplyFormValues = z.infer<typeof applyFormSchema>;
+
+// ---------------------------------------------------------------------------
+// UC-12: Soạn thảo và tạo yêu cầu tuyển dụng (Job Position) mới
+// ---------------------------------------------------------------------------
+
+/**
+ * Chỉ validate đúng những trường "Bắt buộc khi Lưu nháp" theo Screen
+ * Description UC-12 (Tên/Phòng ban/Số lượng chỉ tiêu) + 2 rule áp dụng
+ * cho chính field đó bất kể Draft hay Submit (BR-JOB-02/EX-02,
+ * BR-JOB-03/EX-03) — validate đầy đủ hơn (Loại hình, Pipeline Template...)
+ * thuộc UC-13 "Gửi duyệt", chưa làm ở form này.
+ */
+export const jobPositionFormSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Vui lòng nhập chức danh').max(120, 'Chức danh tối đa 120 ký tự'),
+    // Select trả string; '' = chưa chọn.
+    departmentId: z.string().min(1, 'Vui lòng chọn phòng ban'),
+    employmentType: z.string(),
+    // NumberInput trả number | null — cả 2 cùng null = "Thỏa thuận".
+    salaryMin: z.number().nullable(),
+    salaryMax: z.number().nullable(),
+    openings: z
+      .number({
+        required_error: 'Vui lòng nhập số lượng chỉ tiêu',
+        invalid_type_error: 'Vui lòng nhập số lượng chỉ tiêu',
+      })
+      .int()
+      .min(1, 'Số lượng chỉ tiêu phải từ 1 trở lên'),
+    // DatePicker trả chuỗi 'YYYY-MM-DD'; '' = không giới hạn.
+    applicationDeadline: z.string(),
+    location: z.string(),
+    description: z.string(),
+    requirements: z.string(),
+    benefits: z.string(),
+  })
+  .refine(
+    (data) => data.salaryMin === null || data.salaryMax === null || data.salaryMin <= data.salaryMax,
+    { message: 'Mức lương tối thiểu không được lớn hơn mức lương tối đa (EX-02)', path: ['salaryMax'] },
+  )
+  .refine(
+    (data) => data.applicationDeadline === '' || new Date(data.applicationDeadline) > new Date(),
+    { message: 'Hạn nộp hồ sơ phải là một ngày trong tương lai (EX-03)', path: ['applicationDeadline'] },
+  );
+
+export type JobPositionFormValues = z.infer<typeof jobPositionFormSchema>;
