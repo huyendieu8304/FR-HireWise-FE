@@ -7,14 +7,16 @@ export interface ListInternalJobsParams {
   size?: number;
   departmentId?: number;
   status?: JobPositionStatus;
+  /** Ô search box — tìm theo tên vị trí (case-insensitive, khớp 1 phần). */
+  keyword?: string;
 }
 
 /**
  * "Vị trí tuyển dụng": danh sách mọi Job Position trong phạm vi truy cập
- * (Access Scope) của Recruiter/Hiring Manager hiện tại, có thể lọc
- * theo phòng ban và trạng thái — khác `listPublicJobs` (chỉ Job đã Published,
- * không cần đăng nhập) và `listPendingApprovals` (chỉ dành cho Hiring
- * Manager với quyền JOB_APPROVE).
+ * (Access Scope) của Recruiter/Hiring Manager/Interviewer hiện tại, có thể
+ * lọc theo phòng ban, trạng thái và tìm theo tên (search box) — khác
+ * `listPublicJobs` (chỉ Job đã Published, không cần đăng nhập) và
+ * `listPendingApprovals` (chỉ dành cho Hiring Manager với quyền JOB_APPROVE).
  */
 export function listInternalJobs(
   params: ListInternalJobsParams = {},
@@ -25,6 +27,7 @@ export function listInternalJobs(
       size: params.size ?? 20,
       departmentId: params.departmentId,
       status: params.status,
+      keyword: params.keyword || undefined,
     },
   });
 }

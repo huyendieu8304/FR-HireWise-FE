@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Briefcase, Buildings, Users } from '@phosphor-icons/react';
+import { ArrowRight, Briefcase, Buildings, MagnifyingGlass, Users } from '@phosphor-icons/react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge/Badge';
 import { Select } from '@/components/ui/Select/Select';
+import { TextInput } from '@/components/ui/TextInput/TextInput';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { listInternalJobs } from '../api/internalJobsApi';
 import { EMPLOYMENT_TYPE_LABELS, JOB_STATUS_LABELS, type InternalJobSummary, type JobPositionStatus } from '../types';
@@ -28,14 +29,24 @@ const STATUS_FILTER_OPTIONS = (Object.keys(JOB_STATUS_LABELS) as JobPositionStat
 
 /**
  * "Vị trí tuyển dụng": danh sách mọi Job Position trong phạm vi truy cập của
- * Hiring Manager/Recruiter hiện tại (Access Scope, xem `JobService`
- * backend), có bộ lọc theo Phòng ban và Trạng thái. Click 1 dòng để mở
- * `JobDetailPage` (tab "Mô tả chi tiết" + "Kanban Board").
+ * Hiring Manager/Recruiter/Interviewer hiện tại (Access Scope, xem
+ * `JobService` backend), có bộ lọc theo Phòng ban, Trạng thái và ô search
+ * theo tên vị trí. Click 1 dòng để mở `JobDetailPage` (tab "Mô tả chi tiết"
+ * + "Kanban Board").
  */
 export function JobListPage() {
   const navigate = useNavigate();
   const [departmentId, setDepartmentId] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const [keyword, setKeyword] = useState<string>('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState<string>('');
+
+  // Debounce 400ms trước khi gọi API — tránh gọi liên tục mỗi lần gõ phím
+  // (cùng pattern với `JobBoardPage`, xem `features/jobs/pages/JobBoardPage.tsx`).
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedKeyword(keyword.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [keyword]);
 
   const { data: departments } = useQuery({
     queryKey: ['departments', 'list'],
@@ -47,12 +58,13 @@ export function JobListPage() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['jobs', 'internal-list', departmentId, status],
+    queryKey: ['jobs', 'internal-list', departmentId, status, debouncedKeyword],
     queryFn: () =>
       listInternalJobs({
         size: 50,
         departmentId: departmentId ? Number(departmentId) : undefined,
         status: status ? (status as JobPositionStatus) : undefined,
+        keyword: debouncedKeyword || undefined,
       }),
   });
 
@@ -79,6 +91,15 @@ export function JobListPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+        <div className="w-full max-w-[280px]">
+          <TextInput
+            label="Tìm kiếm"
+            placeholder="Tìm theo tên vị trí..."
+            prefixIcon={<MagnifyingGlass />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+        </div>
         <div className="w-full max-w-[220px]">
           <Select
             label="Phòng ban"
@@ -162,7 +183,9 @@ export function JobListPage() {
                 Không tìm thấy vị trí tuyển dụng nào
               </p>
               <p className="mt-1 text-xs text-neutral-400">
-                Thử bỏ bớt bộ lọc phòng ban/trạng thái đang áp dụng.
+                {debouncedKeyword
+                  ? `Không có vị trí nào khớp với "${debouncedKeyword}". Thử từ khóa khác hoặc bỏ bớt bộ lọc.`
+                  : 'Thử bỏ bớt bộ lọc phòng ban/trạng thái đang áp dụng.'}
               </p>
             </div>
           </div>
