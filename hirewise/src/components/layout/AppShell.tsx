@@ -4,6 +4,7 @@ import {
   Briefcase,
   CaretDown,
   ChartBar,
+  CheckCircle,
   CloudArrowUp,
   EnvelopeSimple,
   Kanban,
@@ -43,10 +44,18 @@ function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined):
 const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: SquaresFour },
   { to: ROUTES.JOBS, label: 'Vị trí tuyển dụng', icon: Briefcase },
+  // UC-14: Hiring Manager xem/duyệt Job — chỉ hiện với user có JOB_APPROVE.
+  {
+    to: ROUTES.JOB_APPROVALS,
+    label: 'Phê duyệt Job',
+    icon: CheckCircle,
+    requiredPermission: 'JOB_APPROVE',
+  },
   { to: '/pipeline', label: 'Pipeline', icon: Kanban },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
+
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   // Trang danh sách user yêu cầu USER_VIEW (xem UserAdminService#list...).
