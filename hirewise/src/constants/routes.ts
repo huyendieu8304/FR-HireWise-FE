@@ -18,5 +18,7 @@ export const ROUTES = {
   JOB_APPROVALS: '/approvals',
   /** UC-15: chi tiết 1 Job để Approve/Reject (chưa implement). */
   JOB_APPROVAL_DETAIL: '/approvals/:jobId',
+  /** UC-22/UC-23: Kanban board ứng viên theo Job (kéo-thả đổi Stage). */
+  KANBAN_BOARD: '/pipeline',
 } as const;
 

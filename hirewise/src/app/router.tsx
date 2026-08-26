@@ -12,6 +12,7 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
+import { KanbanBoardPage } from '@/features/kanban/pages/KanbanBoardPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ROUTES } from '@/constants/routes';
@@ -50,6 +51,8 @@ export const router = createBrowserRouter([
             element: <CloudStorageIntegrationPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
+          /** UC-22/UC-23: Kanban board ứng viên (kéo-thả đổi Stage). */
+          { path: ROUTES.KANBAN_BOARD, element: <KanbanBoardPage /> },
           { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
           /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */

@@ -51,7 +51,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: CheckCircle,
     requiredPermission: 'JOB_APPROVE',
   },
-  { to: '/pipeline', label: 'Pipeline', icon: Kanban },
+  // UC-22/UC-23: Kanban board ứng viên — chỉ hiện với user có APPLICATION_VIEW
+  // (Recruiter/Hiring Manager/Interviewer), không phải HR Admin.
+  {
+    to: ROUTES.KANBAN_BOARD,
+    label: 'Pipeline',
+    icon: Kanban,
+    requiredPermission: 'APPLICATION_VIEW',
+  },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
@@ -81,7 +88,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   },
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
   // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
-  // Kanban ứng viên, UC-23, chưa xây) — mục này là màn hình cấu hình.
+  // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
   {
     to: ROUTES.PIPELINE_TEMPLATES,
     label: 'Pipeline tuyển dụng',
