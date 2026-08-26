@@ -7,7 +7,6 @@ import {
   CheckCircle,
   CloudArrowUp,
   EnvelopeSimple,
-  Kanban,
   PuzzlePiece,
   SignOut,
   SquaresFour,
@@ -43,7 +42,15 @@ function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined):
 
 const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: SquaresFour },
-  { to: ROUTES.JOBS, label: 'Vị trí tuyển dụng', icon: Briefcase },
+  // "Vị trí tuyển dụng": danh sách Job (lọc phòng ban/trạng thái) -> chi
+  // tiết Job gồm tab Mô tả chi tiết + Kanban Board ứng viên (UC-22/UC-23).
+  // Chỉ hiện với user có JOB_VIEW (Recruiter/Hiring Manager).
+  {
+    to: ROUTES.JOBS,
+    label: 'Vị trí tuyển dụng',
+    icon: Briefcase,
+    requiredPermission: 'JOB_VIEW',
+  },
   // UC-14: Hiring Manager xem/duyệt Job — chỉ hiện với user có JOB_APPROVE.
   {
     to: ROUTES.JOB_APPROVALS,
@@ -51,7 +58,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: CheckCircle,
     requiredPermission: 'JOB_APPROVE',
   },
-  { to: '/pipeline', label: 'Pipeline', icon: Kanban },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
@@ -81,7 +87,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   },
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
   // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
-  // Kanban ứng viên, UC-23, chưa xây) — mục này là màn hình cấu hình.
+  // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
   {
     to: ROUTES.PIPELINE_TEMPLATES,
     label: 'Pipeline tuyển dụng',

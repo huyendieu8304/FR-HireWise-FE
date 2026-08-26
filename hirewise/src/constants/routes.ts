@@ -7,6 +7,7 @@ export const ROUTES = {
   ACTIVATE: '/activate',
   DASHBOARD: '/dashboard',
   JOBS: '/jobs',
+  JOB_DETAIL: '/jobs/:jobId',
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
