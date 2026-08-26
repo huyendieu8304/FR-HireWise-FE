@@ -122,5 +122,68 @@ export interface RejectJobPayload {
   reason: string;
 }
 
+// ---------------------------------------------------------------------------
+// "Vị trí tuyển dụng" — danh sách/chi tiết Job Position nội bộ (JOB_VIEW),
+// điểm vào từ sidebar để xem JD + Kanban board của 1 Job (khác UC-14/15:
+// không giới hạn theo trạng thái phê duyệt, không yêu cầu JOB_APPROVE).
+// ---------------------------------------------------------------------------
+
+/** Khớp `JobStatus.java`. */
+export type JobPositionStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PUBLISHED'
+  | 'PAUSED'
+  | 'CLOSED';
+
+export const JOB_STATUS_LABELS: Record<JobPositionStatus, string> = {
+  DRAFT: 'Bản nháp',
+  PENDING_APPROVAL: 'Chờ phê duyệt',
+  APPROVED: 'Đã phê duyệt',
+  REJECTED: 'Đã từ chối',
+  PUBLISHED: 'Đang công bố',
+  PAUSED: 'Tạm dừng',
+  CLOSED: 'Đã đóng',
+};
+
+/** Khớp `JobSummaryResponseDto` — 1 dòng trong danh sách "Vị trí tuyển dụng". */
+export interface InternalJobSummary {
+  id: string;
+  title: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  status: JobPositionStatus;
+  employmentType: EmploymentType | null;
+  openings: number;
+  recruiterName: string | null;
+  createdAt: string;
+}
+
+/** Khớp `JobDetailResponseDto` — tab "Mô tả chi tiết" khi mở 1 Job. */
+export interface InternalJobDetail {
+  id: string;
+  title: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  location: string | null;
+  employmentType: EmploymentType | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  openings: number;
+  applicationDeadline: string | null;
+  description: string | null;
+  requirements: string | null;
+  benefits: string | null;
+  status: JobPositionStatus;
+  recruiterName: string | null;
+  hiringManagerName: string | null;
+  pipelineTemplateId: number | null;
+  pipelineTemplateName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 

@@ -7,7 +7,6 @@ import {
   CheckCircle,
   CloudArrowUp,
   EnvelopeSimple,
-  Kanban,
   PuzzlePiece,
   SignOut,
   SquaresFour,
@@ -43,21 +42,21 @@ function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined):
 
 const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: SquaresFour },
-  { to: ROUTES.JOBS, label: 'Vị trí tuyển dụng', icon: Briefcase },
+  // "Vị trí tuyển dụng": danh sách Job (lọc phòng ban/trạng thái) -> chi
+  // tiết Job gồm tab Mô tả chi tiết + Kanban Board ứng viên (UC-22/UC-23).
+  // Chỉ hiện với user có JOB_VIEW (Recruiter/Hiring Manager).
+  {
+    to: ROUTES.JOBS,
+    label: 'Vị trí tuyển dụng',
+    icon: Briefcase,
+    requiredPermission: 'JOB_VIEW',
+  },
   // UC-14: Hiring Manager xem/duyệt Job — chỉ hiện với user có JOB_APPROVE.
   {
     to: ROUTES.JOB_APPROVALS,
     label: 'Phê duyệt Job',
     icon: CheckCircle,
     requiredPermission: 'JOB_APPROVE',
-  },
-  // UC-22/UC-23: Kanban board ứng viên — chỉ hiện với user có APPLICATION_VIEW
-  // (Recruiter/Hiring Manager/Interviewer), không phải HR Admin.
-  {
-    to: ROUTES.KANBAN_BOARD,
-    label: 'Pipeline',
-    icon: Kanban,
-    requiredPermission: 'APPLICATION_VIEW',
   },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },

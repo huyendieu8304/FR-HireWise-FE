@@ -51,8 +51,9 @@ export const router = createBrowserRouter([
             element: <CloudStorageIntegrationPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
-          /** UC-22/UC-23: Kanban board ứng viên (kéo-thả đổi Stage). */
-          { path: ROUTES.KANBAN_BOARD, element: <KanbanBoardPage /> },
+          /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
+          { path: ROUTES.JOBS, element: <JobListPage /> },
+          { path: ROUTES.JOB_DETAIL, element: <JobDetailPage /> },
           { path: ROUTES.SETTINGS_EMAIL_TEMPLATES, element: <EmailTemplatePage /> },
           { path: ROUTES.COMPONENT_SHOWCASE, element: <ComponentShowcasePage /> },
           /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */
