@@ -19,6 +19,8 @@ interface ApplicationCardProps {
   draggable: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
+  /** UC-20: mở Applicant Card chi tiết khi click vào thẻ (không phải khi đang kéo-thả). */
+  onClick: () => void;
 }
 
 /**
@@ -33,15 +35,17 @@ export function ApplicationCard({
   draggable,
   onDragStart,
   onDragEnd,
+  onClick,
 }: ApplicationCardProps) {
   return (
     <div
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onClick={onClick}
       className={cn(
-        'shadow-elevation-1 flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 transition-opacity',
-        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-90',
+        'shadow-elevation-1 flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 transition-opacity hover:border-primary-300 hover:shadow-elevation-2',
+        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer opacity-90',
         isDragging && 'opacity-40',
       )}
     >

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Kanban as KanbanIcon } from '@phosphor-icons/react';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { useNotification } from '@/hooks/useNotification';
+import { ROUTES } from '@/constants/routes';
 import { getKanbanBoard, moveApplicationStage } from '../api/kanbanApi';
 import { KanbanColumn } from './KanbanColumn';
 
@@ -16,6 +18,7 @@ interface KanbanBoardViewProps {
 export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   const notify = useNotification();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dragState, setDragState] = useState<{
     applicationId: string;
     fromStageId: number;
@@ -57,6 +60,11 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   function handleDragEndCard() {
     setDragState(null);
     setDragOverStageId(null);
+  }
+
+  // UC-20: mở Applicant Card chi tiết — điểm vào duy nhất của UC-29 (Từ chối ứng viên).
+  function handleCardClick(applicationId: string) {
+    navigate(ROUTES.APPLICATION_DETAIL.replace(':applicationId', applicationId));
   }
 
   function handleDrop(targetStageId: number) {
@@ -117,6 +125,7 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
             setDragOverStageId((current) => (current === column.stageId ? null : current))
           }
           onDrop={() => handleDrop(column.stageId)}
+          onCardClick={handleCardClick}
         />
       ))}
     </div>
