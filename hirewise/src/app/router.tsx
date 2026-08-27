@@ -17,6 +17,7 @@ import { CloudStorageIntegrationPage } from '@/features/integrations/pages/Cloud
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
+import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -65,6 +66,8 @@ export const router = createBrowserRouter([
           { path: ROUTES.JOB_APPROVALS, element: <ApprovalListPage /> },
           /** UC-15: Hiring Manager xem chi tiết và Phê duyệt / Từ chối Job. */
           { path: ROUTES.JOB_APPROVAL_DETAIL, element: <ApprovalDetailPage /> },
+          /** UC-20: Applicant Card chi tiết — cũng là điểm vào UC-29 (Từ chối ứng viên). */
+          { path: ROUTES.APPLICATION_DETAIL, element: <ApplicantCardPage /> },
         ],
       },
     ],

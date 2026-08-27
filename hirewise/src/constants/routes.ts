@@ -23,5 +23,7 @@ export const ROUTES = {
   JOB_APPROVALS: '/approvals',
   /** UC-15: chi tiết 1 Job để Approve/Reject (chưa implement). */
   JOB_APPROVAL_DETAIL: '/approvals/:jobId',
+  /** UC-20: Applicant Card — chi tiết 1 hồ sơ ứng tuyển, cũng là điểm vào của UC-29 (Từ chối). */
+  APPLICATION_DETAIL: '/applications/:applicationId',
 } as const;
 
