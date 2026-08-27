@@ -7,7 +7,11 @@ export const ROUTES = {
   ACTIVATE: '/activate',
   DASHBOARD: '/dashboard',
   JOBS: '/jobs',
+  /** UC-12: tạo mới Job Position. */
+  JOB_NEW: '/jobs/new',
   JOB_DETAIL: '/jobs/:jobId',
+  /** UC-12 AF-01: "Lưu nháp" lại 1 Job đang Draft/Rejected. */
+  JOB_EDIT: '/jobs/:jobId/edit',
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',

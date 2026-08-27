@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DotsSixVertical, Plus, Stack, Trash } from '@phosphor-icons/react';
+import { CheckCircle, DotsSixVertical, Plus, Stack, Trash } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { cn } from '@/utils/cn';
 import { useNotification } from '@/hooks/useNotification';
 import {
+  activatePipelineTemplate,
   listPipelineStages,
   listPipelineTemplates,
   reorderPipelineStages,
@@ -87,6 +88,23 @@ export function PipelineManagementPage() {
       // thật từ server (đúng "giữ nguyên thứ tự cũ" theo SRS).
       notify.error(error);
       queryClient.invalidateQueries({ queryKey: stagesQueryKey });
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (templateId: number) => activatePipelineTemplate(templateId),
+    onSuccess: (updatedTemplate) => {
+      // Cập nhật ngay Badge trạng thái trong danh sách Template bên trái,
+      // không cần chờ refetch.
+      queryClient.setQueryData<PipelineTemplate[]>(['pipeline-templates'], (current) =>
+        current?.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t)),
+      );
+      notify.success(`Đã kích hoạt Template "${updatedTemplate.name}".`);
+    },
+    onError: (error) => {
+      // BR-PIPE-01/EX (409): chưa đủ >=2 Stage hoặc thiếu 1 trong 2 loại
+      // Terminal — apiClient đã tự toast message backend trả về.
+      notify.error(error);
     },
   });
 
@@ -200,10 +218,24 @@ export function PipelineManagementPage() {
                     {selectedTemplate.departmentName ?? 'Áp dụng toàn hệ thống'}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => setIsStageModalOpen(true)}>
-                  <Plus className="size-4" />
-                  Thêm Stage
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* UC-13 điều kiện tiên quyết: chỉ Template ACTIVE mới gán được cho Job Position. */}
+                  {selectedTemplate.status === 'DRAFT' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      isLoading={activateMutation.isPending}
+                      onClick={() => activateMutation.mutate(selectedTemplate.id)}
+                    >
+                      <CheckCircle className="size-4" />
+                      Kích hoạt
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => setIsStageModalOpen(true)}>
+                    <Plus className="size-4" />
+                    Thêm Stage
+                  </Button>
+                </div>
               </div>
 
               <table className="w-full border-collapse text-left">

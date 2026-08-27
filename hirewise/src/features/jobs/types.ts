@@ -161,6 +161,35 @@ export interface InternalJobSummary {
   createdAt: string;
 }
 
+/**
+ * UC-12: body gửi lên khi tạo mới (`POST /jobs`) hoặc lưu nháp lại
+ * (`PATCH /jobs/{id}`) — khớp `JobPositionRequestDto` backend, dùng CHUNG
+ * cho cả 2 hành động vì "Lưu nháp" gửi lại nguyên form, không phải patch
+ * từng phần.
+ */
+export interface JobPositionFormPayload {
+  title: string;
+  departmentId: number;
+  employmentType: EmploymentType | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  openings: number;
+  /** ISO date (YYYY-MM-DD) hoặc `null` = không giới hạn. */
+  applicationDeadline: string | null;
+  location: string | null;
+  description: string | null;
+  requirements: string | null;
+  benefits: string | null;
+}
+
+/**
+ * UC-13 main flow: body gửi lên khi "Gửi duyệt" 1 Job đang Draft/Rejected
+ * (`POST /jobs/{id}/submit`) — khớp `SubmitJobRequestDto` backend.
+ */
+export interface SubmitJobPayload {
+  pipelineTemplateId: number;
+}
+
 /** Khớp `JobDetailResponseDto` — tab "Mô tả chi tiết" khi mở 1 Job. */
 export interface InternalJobDetail {
   id: string;

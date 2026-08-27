@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Briefcase, Buildings, MagnifyingGlass, Users } from '@phosphor-icons/react';
+import { ArrowRight, Briefcase, Buildings, MagnifyingGlass, Plus, Users } from '@phosphor-icons/react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge/Badge';
 import { Select } from '@/components/ui/Select/Select';
 import { TextInput } from '@/components/ui/TextInput/TextInput';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+import { Button } from '@/components/ui/Button/Button';
 import { listInternalJobs } from '../api/internalJobsApi';
 import { EMPLOYMENT_TYPE_LABELS, JOB_STATUS_LABELS, type InternalJobSummary, type JobPositionStatus } from '../types';
 import { listDepartments } from '@/features/users/api/usersApi';
 import { formatDate } from '@/utils/formatters';
 import { ROUTES } from '@/constants/routes';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -36,6 +38,7 @@ const STATUS_FILTER_OPTIONS = (Object.keys(JOB_STATUS_LABELS) as JobPositionStat
  */
 export function JobListPage() {
   const navigate = useNavigate();
+  const canCreateJob = useAuthStore((state) => state.user?.permissions.includes('JOB_CREATE') ?? false);
   const [departmentId, setDepartmentId] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [keyword, setKeyword] = useState<string>('');
@@ -82,11 +85,19 @@ export function JobListPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-neutral-900">Vị trí tuyển dụng</h1>
-        <p className="text-sm text-neutral-500">
-          Toàn bộ vị trí tuyển dụng trong phạm vi quản lý của bạn — xem mô tả chi tiết và theo dõi ứng viên trên Kanban board.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-neutral-900">Vị trí tuyển dụng</h1>
+          <p className="text-sm text-neutral-500">
+            Toàn bộ vị trí tuyển dụng trong phạm vi quản lý của bạn — xem mô tả chi tiết và theo dõi ứng viên trên Kanban board.
+          </p>
+        </div>
+        {canCreateJob && (
+          <Button onClick={() => navigate(ROUTES.JOB_NEW)}>
+            <Plus className="size-4" />
+            Tạo Job mới
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

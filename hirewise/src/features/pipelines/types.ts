@@ -4,7 +4,7 @@
  * `hirewise/docs/GUIDE.md` mục "Gọi API mới" nếu cần đối chiếu quy ước.
  */
 
-/** Khớp `PipelineTemplateStatus.java`. DRAFT -> ACTIVE (kích hoạt) không thuộc phạm vi UC-04, chưa có UI. */
+/** Khớp `PipelineTemplateStatus.java`. DRAFT -> ACTIVE (kích hoạt) là điều kiện tiên quyết của UC-13 — xem `activatePipelineTemplate`. */
 export type PipelineTemplateStatus = 'DRAFT' | 'ACTIVE';
 
 /** Khớp `StageType.java` (LV-06). */
