@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { fromProviderPathSegment } from '../types';
 import type { CloudStorageProvider } from '../types';
@@ -21,9 +21,9 @@ interface OAuthMessage extends CloudStorageOAuthResult {
 
 function isOAuthMessage(data: unknown): data is OAuthMessage {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    (data as { type?: unknown }).type === OAUTH_MESSAGE_TYPE
+      typeof data === 'object' &&
+      data !== null &&
+      (data as { type?: unknown }).type === OAUTH_MESSAGE_TYPE
   );
 }
 
@@ -49,27 +49,31 @@ function isOAuthMessage(data: unknown): data is OAuthMessage {
  *   này được lưu qua `ref` nội bộ nên KHÔNG cần bọc `useCallback` ở nơi gọi.
  */
 export function useCloudStorageOAuthCallback(
-  onResult: (result: CloudStorageOAuthResult) => void,
+    onResult: (result: CloudStorageOAuthResult) => void,
 ) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isClosingPopup, setIsClosingPopup] = useState(false);
   const onResultRef = useRef(onResult);
 
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
+  const connectedParam = searchParams.get('connected');
+
+  // `window.opener` không đổi trong vòng đời 1 cửa sổ -> suy ra được NGAY LÚC
+  // RENDER liệu đây có phải popup đang chờ đóng hay không, không cần đồng bộ
+  // bằng setState trong effect (tránh react-hooks/set-state-in-effect).
+  const isPopup =
+      typeof window !== 'undefined' && Boolean(window.opener) && window.opener !== window;
+  const isClosingPopup = connectedParam !== null && isPopup;
+
   useEffect(() => {
-    const connectedParam = searchParams.get('connected');
     if (connectedParam === null) return;
 
     const connected = connectedParam === 'true';
     const provider = fromProviderPathSegment(searchParams.get('provider'));
-    const isPopup =
-      typeof window !== 'undefined' && Boolean(window.opener) && window.opener !== window;
 
     if (isPopup) {
-      setIsClosingPopup(true);
       const message: OAuthMessage = { type: OAUTH_MESSAGE_TYPE, connected, provider };
       window.opener.postMessage(message, window.location.origin);
       // Đợi 1 nhịp ngắn để chắc chắn cửa sổ chính nhận được message trước khi đóng popup.
@@ -79,7 +83,7 @@ export function useCloudStorageOAuthCallback(
 
     setSearchParams({}, { replace: true });
     onResultRef.current({ connected, provider });
-  }, [searchParams, setSearchParams]);
+  }, [connectedParam, isPopup, searchParams, setSearchParams]);
 
   return { isClosingPopup };
 }
@@ -90,7 +94,7 @@ export function useCloudStorageOAuthCallback(
  * Connect/Kết nối lại và mở popup, KHÔNG gọi trong chính popup đó.
  */
 export function useCloudStorageOAuthResultListener(
-  onResult: (result: CloudStorageOAuthResult) => void,
+    onResult: (result: CloudStorageOAuthResult) => void,
 ) {
   const onResultRef = useRef(onResult);
 

@@ -41,7 +41,18 @@ export interface RequestConfig extends AxiosRequestConfig {
 // REQUEST INTERCEPTOR — đính kèm Bearer token
 // ---------------------------------------------------------------------------
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = useAuthStore.getState().accessToken;
+  // `skipAuthRedirect: true` đánh dấu request KHÔNG thuộc 1 phiên đã đăng
+  // nhập (login/activate...) — phải bỏ qua token cũ trong store, KHÔNG
+  // được tự gắn vào. Lý do: Spring Security OAuth2 Resource Server chặn
+  // NGAY TỪ FILTER bất kỳ request nào mang theo Bearer token, kể cả khi
+  // endpoint đích là permitAll — nếu token cũ trong localStorage đã hết
+  // hạn (vd sau > 8h, rất hay gặp), gắn nó vào chính request /auth/login
+  // sẽ khiến backend trả 401 NGAY LẬP TỨC (không có body, không chạy tới
+  // AuthController) TRƯỚC KHI email/password thật sự được kiểm tra — biểu
+  // hiện ra ngoài y hệt "không đăng nhập được, báo phiên hết hạn" dù mật
+  // khẩu nhập đúng.
+  const skipAuthHeader = (config as RequestConfig).skipAuthRedirect === true;
+  const token = skipAuthHeader ? null : useAuthStore.getState().accessToken;
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }

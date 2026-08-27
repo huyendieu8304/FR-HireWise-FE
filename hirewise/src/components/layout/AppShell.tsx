@@ -4,11 +4,13 @@ import {
   Briefcase,
   CaretDown,
   ChartBar,
+  CheckCircle,
   CloudArrowUp,
-  Kanban,
+  EnvelopeSimple,
   PuzzlePiece,
   SignOut,
   SquaresFour,
+  TreeStructure,
   UsersThree,
 } from '@phosphor-icons/react';
 import { ROUTES } from '@/constants/routes';
@@ -40,11 +42,26 @@ function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined):
 
 const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: SquaresFour },
-  { to: ROUTES.JOBS, label: 'Vị trí tuyển dụng', icon: Briefcase },
-  { to: '/pipeline', label: 'Pipeline', icon: Kanban },
+  // "Vị trí tuyển dụng": danh sách Job (lọc phòng ban/trạng thái) -> chi
+  // tiết Job gồm tab Mô tả chi tiết + Kanban Board ứng viên (UC-22/UC-23).
+  // Chỉ hiện với user có JOB_VIEW (Recruiter/Hiring Manager).
+  {
+    to: ROUTES.JOBS,
+    label: 'Vị trí tuyển dụng',
+    icon: Briefcase,
+    requiredPermission: 'JOB_VIEW',
+  },
+  // UC-14: Hiring Manager xem/duyệt Job — chỉ hiện với user có JOB_APPROVE.
+  {
+    to: ROUTES.JOB_APPROVALS,
+    label: 'Phê duyệt Job',
+    icon: CheckCircle,
+    requiredPermission: 'JOB_APPROVE',
+  },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
+
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   // Trang danh sách user yêu cầu USER_VIEW (xem UserAdminService#list...).
@@ -54,12 +71,28 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: UsersThree,
     requiredPermission: 'USER_VIEW',
   },
+  // UC-09: quản lý email template.
+  {
+    to: ROUTES.SETTINGS_EMAIL_TEMPLATES,
+    label: 'Email Template',
+    icon: EnvelopeSimple,
+    requiredPermission: 'EMAIL_TEMPLATE_MANAGE',
+  },
   //CloudStorageIntegrationService yêu cầu INTEGRATION_MANAGE.
   {
     to: ROUTES.SETTINGS_INTEGRATIONS,
     label: 'Tích hợp Cloud Storage',
     icon: CloudArrowUp,
     requiredPermission: 'INTEGRATION_MANAGE',
+  },
+  // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
+  // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
+  // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
+  {
+    to: ROUTES.PIPELINE_TEMPLATES,
+    label: 'Pipeline tuyển dụng',
+    icon: TreeStructure,
+    requiredPermission: 'PIPELINE_MANAGE',
   },
 ];
 
@@ -77,7 +110,9 @@ export function AppShell() {
   const notify = useNotification();
   const navigate = useNavigate();
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, user?.permissions));
+  const visibleNavItems = NAV_ITEMS.filter((item) =>
+    isNavItemVisible(item, user?.permissions),
+  );
   const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) =>
     isNavItemVisible(item, user?.permissions),
   );

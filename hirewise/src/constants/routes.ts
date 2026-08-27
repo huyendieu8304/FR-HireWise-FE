@@ -7,8 +7,21 @@ export const ROUTES = {
   ACTIVATE: '/activate',
   DASHBOARD: '/dashboard',
   JOBS: '/jobs',
+  /** UC-12: tạo mới Job Position. */
+  JOB_NEW: '/jobs/new',
+  JOB_DETAIL: '/jobs/:jobId',
+  /** UC-12 AF-01: "Lưu nháp" lại 1 Job đang Draft/Rejected. */
+  JOB_EDIT: '/jobs/:jobId/edit',
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
+  CAREERS_APPLY: '/careers/:jobId/apply',
   SETTINGS_INTEGRATIONS: '/settings/integrations',
+  PIPELINE_TEMPLATES: '/settings/pipeline-templates',
+  SETTINGS_EMAIL_TEMPLATES: '/settings/email-templates',
+  /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */
+  JOB_APPROVALS: '/approvals',
+  /** UC-15: chi tiết 1 Job để Approve/Reject (chưa implement). */
+  JOB_APPROVAL_DETAIL: '/approvals/:jobId',
 } as const;
+

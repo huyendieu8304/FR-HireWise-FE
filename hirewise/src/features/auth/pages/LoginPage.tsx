@@ -10,7 +10,7 @@ import { useNotification } from '@/hooks/useNotification';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ROUTES } from '@/constants/routes';
 import { AppError } from '@/types/api';
-import { login } from '../api/authApi';
+import { login, type LoginPayload } from '../api/authApi';
 import { loginSchema, type LoginFormValues } from '../schema';
 import { AuthBrandRail } from '../components/AuthBrandRail';
 
@@ -74,7 +74,9 @@ export function LoginPage() {
           </p>
 
           <form
-            onSubmit={handleSubmit((values) => loginMutation.mutate(values))}
+            onSubmit={handleSubmit((values) =>
+              loginMutation.mutate(values as LoginPayload),
+            )}
             className="mt-6 flex flex-col gap-4"
             noValidate
           >
