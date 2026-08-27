@@ -5,6 +5,7 @@ import type {
   InternalJobSummary,
   JobPositionFormPayload,
   JobPositionStatus,
+  SubmitJobPayload,
 } from '../types';
 
 export interface ListInternalJobsParams {
@@ -56,4 +57,16 @@ export function updateInternalJob(
   payload: JobPositionFormPayload,
 ): Promise<InternalJobDetail> {
   return http.patch<InternalJobDetail>(`/jobs/${jobId}`, payload);
+}
+
+/**
+ * UC-13 main flow: gán Pipeline Template (phải đang ACTIVE) cho 1 Job
+ * Position đang Draft/Rejected và gửi lên chờ Hiring Manager phê duyệt —
+ * backend tự chuyển job sang PENDING_APPROVAL và gửi email thông báo (EM-02).
+ */
+export function submitJobForApproval(
+  jobId: string,
+  payload: SubmitJobPayload,
+): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>(`/jobs/${jobId}/submit`, payload);
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -10,6 +11,7 @@ import {
   GitBranch,
   Kanban as KanbanIcon,
   MapPin,
+  PaperPlaneTilt,
   PencilSimple,
   Users,
   WarningCircle,
@@ -25,6 +27,7 @@ import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
 import { KanbanBoardView } from '@/features/kanban/components/KanbanBoardView';
 import { useAuthStore } from '@/store/useAuthStore';
+import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -49,6 +52,10 @@ export function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const canEditJob = useAuthStore((state) => state.user?.permissions.includes('JOB_EDIT') ?? false);
+  const canSubmitJob = useAuthStore(
+    (state) => state.user?.permissions.includes('JOB_SUBMIT') ?? false,
+  );
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
   const tabParam = searchParams.get('tab');
   const activeTab: DetailTab = tabParam === 'kanban' ? 'kanban' : 'description';
@@ -116,13 +123,24 @@ export function JobDetailPage() {
               )}
             </div>
             {/* BR-JOB-04: chỉ Draft/Rejected còn sửa được — Published chỉ Đóng/Tạm dừng (chưa làm). */}
-            {canEditJob && (job.status === 'DRAFT' || job.status === 'REJECTED') && (
-              <Link to={ROUTES.JOB_EDIT.replace(':jobId', job.id)}>
-                <Button variant="outline" size="sm">
-                  <PencilSimple className="size-4" />
-                  Chỉnh sửa
-                </Button>
-              </Link>
+            {(canEditJob || canSubmitJob) && (job.status === 'DRAFT' || job.status === 'REJECTED') && (
+              <div className="flex items-center gap-2">
+                {canEditJob && (
+                  <Link to={ROUTES.JOB_EDIT.replace(':jobId', job.id)}>
+                    <Button variant="outline" size="sm">
+                      <PencilSimple className="size-4" />
+                      Chỉnh sửa
+                    </Button>
+                  </Link>
+                )}
+                {/* UC-13 main flow: gán Pipeline Template + gửi cho Hiring Manager phê duyệt. */}
+                {canSubmitJob && (
+                  <Button size="sm" onClick={() => setIsSubmitModalOpen(true)}>
+                    <PaperPlaneTilt className="size-4" />
+                    Gửi duyệt
+                  </Button>
+                )}
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
@@ -272,6 +290,12 @@ export function JobDetailPage() {
       ) : (
         <KanbanBoardView jobId={job.id} />
       )}
+
+      <SubmitForApprovalModal
+        open={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        job={job}
+      />
     </div>
   );
 }

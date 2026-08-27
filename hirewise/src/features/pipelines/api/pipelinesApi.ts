@@ -66,3 +66,14 @@ export function reorderPipelineStages(
 export function deletePipelineStage(templateId: number, stageId: number): Promise<void> {
   return http.delete<void>(`/pipeline-templates/${templateId}/stages/${stageId}`);
 }
+
+/**
+ * UC-13 (điều kiện tiên quyết): kích hoạt 1 Pipeline Template đang ở
+ * DRAFT sang ACTIVE — chỉ khi Template có >= 2 Stage đang active, gồm ít
+ * nhất 1 Stage Terminal-Success và 1 Stage Terminal-Rejected (BR-PIPE-01,
+ * backend tự chặn 409 nếu chưa đủ điều kiện). Chỉ Template ACTIVE mới có
+ * thể gán cho 1 Job Position khi "Gửi duyệt" (UC-13 main flow).
+ */
+export function activatePipelineTemplate(templateId: number): Promise<PipelineTemplate> {
+  return http.post<PipelineTemplate>(`/pipeline-templates/${templateId}/activate`);
+}

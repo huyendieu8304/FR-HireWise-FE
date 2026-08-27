@@ -182,6 +182,14 @@ export interface JobPositionFormPayload {
   benefits: string | null;
 }
 
+/**
+ * UC-13 main flow: body gửi lên khi "Gửi duyệt" 1 Job đang Draft/Rejected
+ * (`POST /jobs/{id}/submit`) — khớp `SubmitJobRequestDto` backend.
+ */
+export interface SubmitJobPayload {
+  pipelineTemplateId: number;
+}
+
 /** Khớp `JobDetailResponseDto` — tab "Mô tả chi tiết" khi mở 1 Job. */
 export interface InternalJobDetail {
   id: string;
