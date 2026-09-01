@@ -98,7 +98,7 @@ export function ApplicantCardPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Link
-          to={ROUTES.JOB_DETAIL.replace(':jobId', application.jobId)}
+          to={`${ROUTES.JOB_DETAIL.replace(':jobId', application.jobId)}?tab=kanban`}
           className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900"
         >
           <ArrowLeft className="size-4" />
