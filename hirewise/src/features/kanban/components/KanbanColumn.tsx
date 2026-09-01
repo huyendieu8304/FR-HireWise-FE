@@ -13,6 +13,8 @@ interface KanbanColumnProps {
   onDragOver: () => void;
   onDragLeave: () => void;
   onDrop: () => void;
+  /** UC-20: mở Applicant Card chi tiết của 1 Application. */
+  onCardClick: (applicationId: string) => void;
 }
 
 /**
@@ -36,6 +38,7 @@ export function KanbanColumn({
   onDragOver,
   onDragLeave,
   onDrop,
+  onCardClick,
 }: KanbanColumnProps) {
   return (
     <div
@@ -81,6 +84,7 @@ export function KanbanColumn({
             draggable={!column.terminal && !isMoving}
             onDragStart={() => onDragStartCard(application.applicationId, column.stageId)}
             onDragEnd={onDragEndCard}
+            onClick={() => onCardClick(application.applicationId)}
           />
         ))}
       </div>
