@@ -27,3 +27,15 @@ export function rejectApplication(
 ): Promise<ApplicationRejection> {
   return http.post<ApplicationRejection>(`/applications/${applicationId}/reject`, request);
 }
+
+/** UC-20 file view: lấy URL để xem/tải file đính kèm của ứng viên từ Cloud Storage. */
+export function getApplicationFileViewUrl(applicationId: string, fileId: number): Promise<{ viewUrl: string }> {
+  return http.get<{ viewUrl: string }>(`/applications/${applicationId}/files/${fileId}/view-url`);
+}
+
+/** UC-20 file download: proxy tải nội dung file từ backend. */
+export function downloadApplicationFile(applicationId: string, fileId: number): Promise<Blob> {
+  return http.get<Blob>(`/applications/${applicationId}/files/${fileId}/download`, {
+    responseType: 'blob',
+  });
+}

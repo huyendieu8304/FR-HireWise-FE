@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  ArrowSquareOut,
   Buildings,
   CalendarBlank,
   Clock,
@@ -18,9 +19,10 @@ import { Badge, type BadgeVariant } from '@/components/ui/Badge/Badge';
 import { Button } from '@/components/ui/Button/Button';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useNotification } from '@/hooks/useNotification';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/utils/formatters';
 import { ROUTES } from '@/constants/routes';
-import { getApplicationDetail } from '../api/applicationsApi';
+import { getApplicationDetail, downloadApplicationFile } from '../api/applicationsApi';
 import { RejectApplicationModal } from '../components/RejectApplicationModal';
 import {
   APPLICATION_FILE_ROLE_LABELS,
@@ -53,8 +55,10 @@ function formatFileSize(sizeBytes: number): string {
 export function ApplicantCardPage() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
+  const notify = useNotification();
   const currentUser = useAuthStore((state) => state.user);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [openingFileId, setOpeningFileId] = useState<number | null>(null);
 
   const {
     data: application,
@@ -69,6 +73,27 @@ export function ApplicantCardPage() {
   // UI-only gate — quyền thật (APPLICATION_REJECT + ownership Layer 4) luôn
   // được backend kiểm tra lại; đây chỉ để ẩn nút với ai chắc chắn không có quyền.
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
+  const canView = currentUser?.permissions.includes('APPLICATION_VIEW') ?? false;
+
+  async function handleOpenFile(fileId: number) {
+    if (!applicationId) return;
+    try {
+      setOpeningFileId(fileId);
+      const blob = await downloadApplicationFile(applicationId, fileId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Revoke the object URL after a short delay to free memory, assuming the new tab has loaded it
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error: any) {
+      if (error?.response?.data?.errorCode === 'FILE_NOT_YET_AVAILABLE') {
+        notify.error('File chưa sẵn sàng, vui lòng thử lại sau ít phút.');
+      } else {
+        notify.error('Không thể mở file. Vui lòng thử lại sau.');
+      }
+    } finally {
+      setOpeningFileId(null);
+    }
+  }
 
   if (isLoading) {
     return <ApplicantCardSkeleton />;
@@ -185,7 +210,21 @@ export function ApplicantCardPage() {
                         </span>
                       </div>
                     </div>
-                    {file.primary && <Badge variant="primary">Chính</Badge>}
+                    <div className="flex items-center gap-2">
+                      {file.primary && <Badge variant="primary">Chính</Badge>}
+                      {canView && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          isLoading={openingFileId === file.fileId}
+                          onClick={() => handleOpenFile(file.fileId)}
+                          className="h-8 px-2 text-neutral-500 hover:text-primary-600"
+                        >
+                          <ArrowSquareOut className="size-4" />
+                          <span className="sr-only">Mở file</span>
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
