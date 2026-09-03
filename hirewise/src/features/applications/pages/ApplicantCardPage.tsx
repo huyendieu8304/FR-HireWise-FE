@@ -11,6 +11,7 @@ import {
   File as FileIcon,
   Phone,
   Prohibit,
+  ReadCvLogo,
   UserCircle,
   WarningCircle,
   XCircle,
@@ -25,6 +26,9 @@ import { ROUTES } from '@/constants/routes';
 import { getApplicationDetail, downloadApplicationFile } from '../api/applicationsApi';
 import { AiMatchAnalysisSection } from '../components/AiMatchAnalysisSection';
 import { RejectApplicationModal } from '../components/RejectApplicationModal';
+import { getLatestOffer } from '@/features/offers/api/offersApi';
+import { CreateOfferModal } from '@/features/offers/components/CreateOfferModal';
+import { OfferReviewPanel } from '@/features/offers/components/OfferReviewPanel';
 import {
   APPLICATION_FILE_ROLE_LABELS,
   CANDIDATE_STATUS_LABELS,
@@ -59,6 +63,7 @@ export function ApplicantCardPage() {
   const notify = useNotification();
   const currentUser = useAuthStore((state) => state.user);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isCreateOfferModalOpen, setIsCreateOfferModalOpen] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<number | null>(null);
 
   const {
@@ -76,6 +81,17 @@ export function ApplicantCardPage() {
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const canView = currentUser?.permissions.includes('APPLICATION_VIEW') ?? false;
   const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
+  const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
+  const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
+  const canSendOffer = currentUser?.permissions.includes('OFFER_SEND') ?? false;
+
+  // UC-36/37: Offer mới nhất của hồ sơ (backend trả 204 -> null khi chưa có).
+  // Chỉ hỏi khi người dùng có quyền, tránh 403 rác trên tab Network.
+  const { data: latestOffer } = useQuery({
+    queryKey: ['offers', 'latest', applicationId],
+    queryFn: () => getLatestOffer(applicationId!),
+    enabled: !!applicationId && canCreateOffer,
+  });
 
   async function handleOpenFile(fileId: number) {
     if (!applicationId) return;
@@ -120,6 +136,11 @@ export function ApplicantCardPage() {
   }
 
   const canRejectNow = canReject && !application.currentStageTerminal;
+  // BR-OFFER-01: chỉ tạo Offer khi hồ sơ đã vào Stage Offer và chưa có Offer
+  // active nào. Đây chỉ là gate UI — backend luôn kiểm tra lại (EX-01).
+  const hasActiveOffer = latestOffer?.status === 'DRAFT' || latestOffer?.status === 'SENT';
+  const canCreateOfferNow =
+    canCreateOffer && application.currentStageType === 'OFFER' && !hasActiveOffer;
 
   return (
     <div className="flex flex-col gap-6">
@@ -158,12 +179,20 @@ export function ApplicantCardPage() {
             </div>
           </div>
 
-          {canRejectNow && (
-            <Button variant="danger" onClick={() => setIsRejectModalOpen(true)}>
-              <XCircle className="mr-1.5 size-5" weight="bold" />
-              Từ chối ứng viên
-            </Button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canCreateOfferNow && (
+              <Button onClick={() => setIsCreateOfferModalOpen(true)}>
+                <ReadCvLogo className="mr-1.5 size-5" weight="bold" />
+                Tạo Offer
+              </Button>
+            )}
+            {canRejectNow && (
+              <Button variant="danger" onClick={() => setIsRejectModalOpen(true)}>
+                <XCircle className="mr-1.5 size-5" weight="bold" />
+                Từ chối ứng viên
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -186,6 +215,9 @@ export function ApplicantCardPage() {
           </div>
         </div>
       )}
+
+      {/* UC-37: xem trước & gửi Offer. Chỉ hiện khi hồ sơ đã có Offer. */}
+      {latestOffer && <OfferReviewPanel offer={latestOffer} canSend={canSendOffer} />}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
@@ -316,6 +348,13 @@ export function ApplicantCardPage() {
           </div>
         </div>
       </div>
+
+      <CreateOfferModal
+        open={isCreateOfferModalOpen}
+        onClose={() => setIsCreateOfferModalOpen(false)}
+        applicationId={application.applicationId}
+        candidateName={application.candidateName}
+      />
 
       <RejectApplicationModal
         open={isRejectModalOpen}
