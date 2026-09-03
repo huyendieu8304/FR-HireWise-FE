@@ -1,5 +1,6 @@
 import { http } from '@/lib/apiClient';
 import type {
+  AiScreeningResult,
   ApplicationDetail,
   ApplicationRejection,
   RejectApplicationRequest,
@@ -38,4 +39,17 @@ export function downloadApplicationFile(applicationId: string, fileId: number): 
   return http.get<Blob>(`/applications/${applicationId}/files/${fileId}/download`, {
     responseType: 'blob',
   });
+}
+
+/**
+ * UC-21 main flow: AI Screening Run mới nhất của Application — `null` nếu
+ * chưa từng có run nào (chưa phải lỗi, chỉ là "chưa có phân tích AI").
+ */
+export function getAiScreeningResult(applicationId: string): Promise<AiScreeningResult | null> {
+  return http.get<AiScreeningResult | null>(`/applications/${applicationId}/ai-screening`);
+}
+
+/** UC-21 AF-01: yêu cầu chạy lại AI Screening — queue 1 run mới, không chờ kết quả (202 Accepted). */
+export function runAiScreening(applicationId: string): Promise<void> {
+  return http.post<void>(`/applications/${applicationId}/ai-screening/run`);
 }
