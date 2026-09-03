@@ -62,3 +62,64 @@ export interface StorageConnectionStatus {
   connectedAt: string | null;
   tokenExpiresAt: string | null;
 }
+
+// ============================================================
+// UC-18: Calendar Integration types
+// ============================================================
+
+/** Khớp `IntegrationProvider.java` — 2 provider Calendar hỗ trợ (UC-18). */
+export type CalendarProvider = 'GOOGLE_CALENDAR' | 'OUTLOOK_CALENDAR';
+
+export const CALENDAR_PROVIDERS: CalendarProvider[] = [
+  'GOOGLE_CALENDAR',
+  'OUTLOOK_CALENDAR',
+];
+
+export const CALENDAR_PROVIDER_LABELS: Record<CalendarProvider, string> = {
+  GOOGLE_CALENDAR: 'Google Calendar',
+  OUTLOOK_CALENDAR: 'Outlook Calendar',
+};
+
+/** Description shown on each Calendar provider card. */
+export const CALENDAR_PROVIDER_DESCRIPTIONS: Record<CalendarProvider, string> = {
+  GOOGLE_CALENDAR: 'Đồng bộ lịch phỏng vấn với Google Calendar của tổ chức.',
+  OUTLOOK_CALENDAR: 'Đồng bộ lịch phỏng vấn với Outlook Calendar qua Microsoft 365.',
+};
+
+/**
+ * Sinh path segment kebab-case dùng trong URL
+ * `/api/integrations/calendar/{provider}/...` — PHẢI khớp
+ * `IntegrationProvider.toPathSegment()` phía backend.
+ */
+export function toCalendarProviderPathSegment(provider: CalendarProvider): string {
+  return provider.toLowerCase().replace(/_/g, '-');
+}
+
+/**
+ * Parse path segment từ query param `provider` khi backend redirect về.
+ * Trả `null` nếu không khớp provider Calendar nào.
+ */
+export function fromCalendarProviderPathSegment(
+  pathSegment: string | null,
+): CalendarProvider | null {
+  if (!pathSegment) return null;
+  return (
+    CALENDAR_PROVIDERS.find(
+      (p) => toCalendarProviderPathSegment(p) === pathSegment,
+    ) ?? null
+  );
+}
+
+/**
+ * Khớp `CalendarConnectionStatusResponseDto` — trả về từ
+ * `GET /api/integrations/calendar`. Không bao giờ 404; "chưa kết nối"
+ * là 1 giá trị status bình thường: `connected=false`, các field còn lại `null`.
+ */
+export interface CalendarConnectionStatus {
+  connected: boolean;
+  provider: CalendarProvider | null;
+  status: ConnectionStatus | null;
+  connectedAt: string | null;
+  tokenExpiresAt: string | null;
+}
+

@@ -7,13 +7,15 @@ import { useNotification } from '@/hooks/useNotification';
 import { ROUTES } from '@/constants/routes';
 import { getKanbanBoard, moveApplicationStage } from '../api/kanbanApi';
 import { KanbanColumn } from './KanbanColumn';
+import { ScheduleInterviewModal } from './ScheduleInterviewModal';
 
 interface KanbanBoardViewProps {
   jobId: string;
 }
 
 /**
- * UC-22/UC-23: bảng Kanban ứng viên của 1 Job cụ thể (kéo-thả để chuyển Stage)
+ * UC-22/UC-23/UC-24: bảng Kanban ứng viên của 1 Job cụ thể (kéo-thả để chuyển Stage,
+ * popup lên lịch phỏng vấn khi kéo sang stage INTERVIEW)
  */
 export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   const notify = useNotification();
@@ -25,6 +27,12 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   } | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
   const [movingApplicationId, setMovingApplicationId] = useState<string | null>(null);
+  const [interviewModalState, setInterviewModalState] = useState<{
+    applicationId: string;
+    candidateName: string;
+    targetStageId: number;
+    targetStageName: string;
+  } | null>(null);
 
   const boardQueryKey = ['kanban', 'board', jobId];
   const {
@@ -73,9 +81,42 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
       setDragState(null);
       return;
     }
+
+    const targetColumn = board?.columns.find((c) => c.stageId === targetStageId);
+    if (targetColumn && targetColumn.stageType === 'INTERVIEW') {
+      const sourceColumn = board?.columns.find((c) => c.stageId === dragState.fromStageId);
+      const app = sourceColumn?.applications.find((a) => a.applicationId === dragState.applicationId);
+      const candidateName = app?.candidateName || 'Ứng viên';
+
+      setInterviewModalState({
+        applicationId: dragState.applicationId,
+        candidateName,
+        targetStageId,
+        targetStageName: targetColumn.name,
+      });
+      setDragState(null);
+      return;
+    }
+
     setMovingApplicationId(dragState.applicationId);
     moveMutation.mutate({ applicationId: dragState.applicationId, targetStageId });
     setDragState(null);
+  }
+
+  function handleInterviewScheduled() {
+    setInterviewModalState(null);
+    queryClient.invalidateQueries({ queryKey: boardQueryKey });
+  }
+
+  function handleInterviewSkip() {
+    if (interviewModalState) {
+      setMovingApplicationId(interviewModalState.applicationId);
+      moveMutation.mutate({
+        applicationId: interviewModalState.applicationId,
+        targetStageId: interviewModalState.targetStageId,
+      });
+      setInterviewModalState(null);
+    }
   }
 
   if (isLoadingBoard) {
@@ -110,24 +151,39 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {board.columns.map((column) => (
-        <KanbanColumn
-          key={column.stageId}
-          column={column}
-          draggedApplicationId={dragState?.applicationId ?? null}
-          isDragOver={dragOverStageId === column.stageId}
-          isMoving={movingApplicationId !== null}
-          onDragStartCard={handleDragStartCard}
-          onDragEndCard={handleDragEndCard}
-          onDragOver={() => setDragOverStageId(column.stageId)}
-          onDragLeave={() =>
-            setDragOverStageId((current) => (current === column.stageId ? null : current))
-          }
-          onDrop={() => handleDrop(column.stageId)}
-          onCardClick={handleCardClick}
+    <>
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {board.columns.map((column) => (
+          <KanbanColumn
+            key={column.stageId}
+            column={column}
+            draggedApplicationId={dragState?.applicationId ?? null}
+            isDragOver={dragOverStageId === column.stageId}
+            isMoving={movingApplicationId !== null}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOver={() => setDragOverStageId(column.stageId)}
+            onDragLeave={() =>
+              setDragOverStageId((current) => (current === column.stageId ? null : current))
+            }
+            onDrop={() => handleDrop(column.stageId)}
+            onCardClick={handleCardClick}
+          />
+        ))}
+      </div>
+
+      {interviewModalState && (
+        <ScheduleInterviewModal
+          open={Boolean(interviewModalState)}
+          applicationId={interviewModalState.applicationId}
+          candidateName={interviewModalState.candidateName}
+          targetStageId={interviewModalState.targetStageId}
+          targetStageName={interviewModalState.targetStageName}
+          onClose={() => setInterviewModalState(null)}
+          onSkip={handleInterviewSkip}
+          onScheduled={handleInterviewScheduled}
         />
-      ))}
-    </div>
+      )}
+    </>
   );
 }
