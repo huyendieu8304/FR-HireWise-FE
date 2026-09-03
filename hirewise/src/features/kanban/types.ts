@@ -64,3 +64,66 @@ export interface MoveApplicationStageResult {
   status: ApplicationStatus;
   lastStageChangedAt: string;
 }
+
+// ============================================================
+// UC-24: Schedule Interview types
+// ============================================================
+
+export type InterviewMode = 'ONLINE' | 'ONSITE';
+
+export type InterviewStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+
+export interface InterviewParticipantDto {
+  interviewerId: number;
+  interviewerName: string;
+  interviewerEmail: string;
+}
+
+export interface InterviewerOption {
+  id: number;
+  fullName: string;
+  email: string;
+  departmentName: string | null;
+}
+
+export interface ScheduleInterviewRequest {
+  targetStageId: number;
+  interviewerIds: number[];
+  interviewDate: string; // YYYY-MM-DD
+  interviewTime: string; // HH:mm
+  mode: InterviewMode;
+  locationOrLink?: string;
+  notes?: string;
+}
+
+export interface ScheduleInterviewResponse {
+  interviewId: string;
+  applicationId: string;
+  interviewDate: string;
+  interviewTime: string;
+  mode: InterviewMode;
+  locationOrLink: string | null;
+  status: InterviewStatus;
+  notes: string | null;
+  participants: InterviewParticipantDto[];
+  fromStageId: number;
+  toStageId: number;
+  applicationStatus: ApplicationStatus;
+  lastStageChangedAt: string;
+}
+
+export interface InterviewCalendarItem {
+  interviewId: string;
+  applicationId: string;
+  candidateName: string;
+  candidateEmail: string;
+  jobTitle: string;
+  interviewDate: string; // YYYY-MM-DD
+  interviewTime: string; // HH:mm
+  mode: InterviewMode;
+  locationOrLink: string | null;
+  status: InterviewStatus;
+  interviewerNames: string[];
+}
+
+
