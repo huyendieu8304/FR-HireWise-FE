@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Briefcase,
+  CalendarBlank,
   CaretDown,
   ChartBar,
   CheckCircle,
@@ -58,6 +59,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: CheckCircle,
     requiredPermission: 'JOB_APPROVE',
   },
+  {
+    to: ROUTES.INTERVIEW_CALENDAR,
+    label: 'Lịch phỏng vấn',
+    icon: CalendarBlank,
+    requiredPermission: 'APPLICATION_VIEW',
+  },
   { to: '/reports', label: 'Báo cáo', icon: ChartBar },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
@@ -83,6 +90,13 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     to: ROUTES.SETTINGS_INTEGRATIONS,
     label: 'Tích hợp Cloud Storage',
     icon: CloudArrowUp,
+    requiredPermission: 'INTEGRATION_MANAGE',
+  },
+  // UC-18: Calendar API (Google Calendar / Outlook) — CalendarIntegrationService yêu cầu INTEGRATION_MANAGE.
+  {
+    to: ROUTES.SETTINGS_CALENDAR,
+    label: 'Tích hợp Calendar',
+    icon: CalendarBlank,
     requiredPermission: 'INTEGRATION_MANAGE',
   },
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
