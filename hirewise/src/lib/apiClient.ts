@@ -59,6 +59,26 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+/**
+ * Chuyển `error.response.data` từ Blob về object JSON, ngay tại chỗ.
+ *
+ * Chỉ áp dụng cho request `responseType: 'blob'` mà server trả lỗi JSON.
+ * Nuốt lỗi parse có chủ đích: nếu body không phải JSON (vd HTML 502 của
+ * gateway) thì cứ để nguyên Blob và các nhánh bên dưới rơi về message mặc
+ * định theo status — không có gì để bóc thêm.
+ */
+async function parseBlobErrorBody(error: AxiosError<ApiErrorResponse>): Promise<void> {
+  const data = error.response?.data as unknown;
+  if (!(data instanceof Blob)) return;
+
+  try {
+    const text = await data.text();
+    error.response!.data = JSON.parse(text) as ApiErrorResponse;
+  } catch {
+    // Body không phải JSON — giữ nguyên, xử lý theo status code.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // RESPONSE INTERCEPTOR — chuẩn hóa lỗi + xử lý status code chung
 // ---------------------------------------------------------------------------
@@ -80,8 +100,15 @@ apiClient.interceptors.response.use(
     }
     return response.data;
   },
-  (error: AxiosError<ApiErrorResponse>) => {
+  async (error: AxiosError<ApiErrorResponse>) => {
     const config = error.config as RequestConfig | undefined;
+
+    // 0. Với request `responseType: 'blob'` (vd tải file CV), axios trả body
+    // lỗi về dưới dạng Blob chứ KHÔNG parse JSON — nên `data.code` sẽ luôn
+    // undefined và nơi gọi không thể phân biệt được lỗi nghiệp vụ (vd
+    // FILE_NOT_YET_AVAILABLE) với lỗi chung. Parse lại ở đây một lần để mọi
+    // nhánh status bên dưới đọc được `data.code` như với request JSON.
+    await parseBlobErrorBody(error);
 
     // 1. Lỗi network / timeout — không có response từ server
     if (!error.response) {

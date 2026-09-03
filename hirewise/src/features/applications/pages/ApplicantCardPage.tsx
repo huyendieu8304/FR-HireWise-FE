@@ -20,6 +20,7 @@ import { Badge, type BadgeVariant } from '@/components/ui/Badge/Badge';
 import { Button } from '@/components/ui/Button/Button';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AppError } from '@/types/api';
 import { useNotification } from '@/hooks/useNotification';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/utils/formatters';
 import { ROUTES } from '@/constants/routes';
@@ -102,8 +103,10 @@ export function ApplicantCardPage() {
       window.open(url, '_blank');
       // Revoke the object URL after a short delay to free memory, assuming the new tab has loaded it
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (error: any) {
-      if (error?.response?.data?.errorCode === 'FILE_NOT_YET_AVAILABLE') {
+    } catch (error) {
+      // apiClient quy đổi MỌI lỗi về AppError, nên mã lỗi backend nằm ở
+      // `error.code` — không phải `error.response.data`.
+      if (error instanceof AppError && error.code === 'FILE_NOT_YET_AVAILABLE') {
         notify.error('File chưa sẵn sàng, vui lòng thử lại sau ít phút.');
       } else {
         notify.error('Không thể mở file. Vui lòng thử lại sau.');
