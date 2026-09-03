@@ -1,4 +1,4 @@
-import { EnvelopeSimple, Phone } from '@phosphor-icons/react';
+import { EnvelopeSimple, Phone, Sparkle } from '@phosphor-icons/react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge/Badge';
 import { formatRelativeTime } from '@/utils/formatters';
 import { cn } from '@/utils/cn';
@@ -12,6 +12,13 @@ const STATUS_BADGE_VARIANT: Record<ApplicationCardData['status'], BadgeVariant> 
   REFUSED: 'danger',
   WITHDRAWN: 'neutral',
 };
+
+/** UC-21/BR-AI-03: Xanh &gt;80%, Cam 50-79%, Đỏ &lt;50%. */
+function matchScoreBadgeVariant(score: number): BadgeVariant {
+  if (score > 80) return 'success';
+  if (score >= 50) return 'warning';
+  return 'danger';
+}
 
 interface ApplicationCardProps {
   application: ApplicationCardData;
@@ -53,9 +60,18 @@ export function ApplicationCard({
         <span className="text-sm font-semibold text-neutral-900">
           {application.candidateName}
         </span>
-        <Badge variant={STATUS_BADGE_VARIANT[application.status]} className="shrink-0">
-          {APPLICATION_STATUS_LABELS[application.status]}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* UC-21: Badge điểm AI hiển thị ngay trên Kanban Card (Normal Flow bước 1). */}
+          {application.aiMatchScore !== null && (
+            <Badge variant={matchScoreBadgeVariant(application.aiMatchScore)}>
+              <Sparkle className="size-3" weight="fill" />
+              {Math.round(application.aiMatchScore)}%
+            </Badge>
+          )}
+          <Badge variant={STATUS_BADGE_VARIANT[application.status]}>
+            {APPLICATION_STATUS_LABELS[application.status]}
+          </Badge>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1 text-xs text-neutral-500">

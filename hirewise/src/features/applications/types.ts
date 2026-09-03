@@ -119,3 +119,28 @@ export interface RejectApplicationRequest {
   reasonId: number;
   customMessage?: string;
 }
+
+// ---------------------------------------------------------------------------
+// UC-21: Xem phân tích AI (Match Score, điểm mạnh/điểm yếu)
+// ---------------------------------------------------------------------------
+
+/** Khớp `AiScreeningStatus.java`. */
+export type AiScreeningStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+/**
+ * Khớp `AiScreeningResultResponseDto` — kết quả AI Screening Run mới nhất
+ * của 1 Application. Các field điểm/tóm tắt/kỹ năng chỉ có giá trị khi
+ * `status === 'SUCCEEDED'`; `errorMessage` chỉ có khi `status === 'FAILED'`
+ * (EX-01 — vd CV chưa đính kèm, hoặc định dạng CV chưa hỗ trợ).
+ */
+export interface AiScreeningResult {
+  runId: number;
+  status: AiScreeningStatus;
+  matchScore: number | null;
+  summary: string | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
