@@ -14,10 +14,12 @@ import { JobFormPage } from '@/features/jobs/pages/JobFormPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
+import { CalendarIntegrationPage } from '@/features/integrations/pages/CalendarIntegrationPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
+import { InterviewCalendarPage } from '@/features/kanban/pages/InterviewCalendarPage';
 import { PublicOfferPage } from '@/features/offers/pages/PublicOfferPage';
 import { ROUTES } from '@/constants/routes';
 
@@ -56,6 +58,11 @@ export const router = createBrowserRouter([
             path: ROUTES.SETTINGS_INTEGRATIONS,
             element: <CloudStorageIntegrationPage />,
           },
+          /** UC-18: HR Admin cấu hình Google Calendar / Outlook Calendar. */
+          {
+            path: ROUTES.SETTINGS_CALENDAR,
+            element: <CalendarIntegrationPage />,
+          },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
           /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
           { path: ROUTES.JOBS, element: <JobListPage /> },
@@ -71,6 +78,8 @@ export const router = createBrowserRouter([
           { path: ROUTES.JOB_APPROVAL_DETAIL, element: <ApprovalDetailPage /> },
           /** UC-20: Applicant Card chi tiết — cũng là điểm vào UC-29 (Từ chối ứng viên). */
           { path: ROUTES.APPLICATION_DETAIL, element: <ApplicantCardPage /> },
+          /** UC-24: Calendar view toàn bộ lịch phỏng vấn đã xếp. */
+          { path: ROUTES.INTERVIEW_CALENDAR, element: <InterviewCalendarPage /> },
         ],
       },
     ],

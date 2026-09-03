@@ -25,6 +25,10 @@ export const ROUTES = {
   JOB_APPROVAL_DETAIL: '/approvals/:jobId',
   /** UC-20: Applicant Card — chi tiết 1 hồ sơ ứng tuyển, cũng là điểm vào của UC-29 (Từ chối). */
   APPLICATION_DETAIL: '/applications/:applicationId',
+  /** UC-18: HR Admin cấu hình và đồng bộ Google Calendar / Outlook Calendar. */
+  SETTINGS_CALENDAR: '/settings/integrations/calendar',
+  /** UC-24: Calendar view toàn bộ lịch phỏng vấn đã xếp. */
+  INTERVIEW_CALENDAR: '/interviews/calendar',
   /** UC-38/UC-39: trang ứng viên mở từ liên kết bảo mật trong email EM-11 — xác thực OTP rồi ký điện tử. */
   OFFER_PUBLIC: '/offer/:token',
 } as const;
