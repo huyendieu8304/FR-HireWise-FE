@@ -34,6 +34,8 @@ export interface ApplicationCard {
   status: ApplicationStatus;
   appliedAt: string;
   lastStageChangedAt: string | null;
+  /** UC-21: Match Score AI mới nhất — `null` tới khi có 1 AI Screening Run thành công đầu tiên. */
+  aiMatchScore: number | null;
 }
 
 /** Khớp `KanbanStageColumnResponseDto` — 1 cột (Stage) trên Kanban board. */

@@ -23,6 +23,7 @@ import { useNotification } from '@/hooks/useNotification';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/utils/formatters';
 import { ROUTES } from '@/constants/routes';
 import { getApplicationDetail, downloadApplicationFile } from '../api/applicationsApi';
+import { AiMatchAnalysisSection } from '../components/AiMatchAnalysisSection';
 import { RejectApplicationModal } from '../components/RejectApplicationModal';
 import {
   APPLICATION_FILE_ROLE_LABELS,
@@ -74,6 +75,7 @@ export function ApplicantCardPage() {
   // được backend kiểm tra lại; đây chỉ để ẩn nút với ai chắc chắn không có quyền.
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const canView = currentUser?.permissions.includes('APPLICATION_VIEW') ?? false;
+  const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
 
   async function handleOpenFile(fileId: number) {
     if (!applicationId) return;
@@ -187,6 +189,11 @@ export function ApplicantCardPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
+          {/* UC-21: AI Match Analysis */}
+          {canViewAi && (
+            <AiMatchAnalysisSection applicationId={application.applicationId} canRun={canViewAi} />
+          )}
+
           {/* Files */}
           <div className="rounded-lg border border-neutral-200 bg-white p-6">
             <h2 className="text-base font-bold text-neutral-900">Hồ sơ đính kèm</h2>
