@@ -25,5 +25,7 @@ export const ROUTES = {
   JOB_APPROVAL_DETAIL: '/approvals/:jobId',
   /** UC-20: Applicant Card — chi tiết 1 hồ sơ ứng tuyển, cũng là điểm vào của UC-29 (Từ chối). */
   APPLICATION_DETAIL: '/applications/:applicationId',
+  /** UC-38/UC-39: trang ứng viên mở từ liên kết bảo mật trong email EM-11 — xác thực OTP rồi ký điện tử. */
+  OFFER_PUBLIC: '/offer/:token',
 } as const;
 
