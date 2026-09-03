@@ -114,8 +114,8 @@ export function ApprovalDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['job-approvals'] });
       navigate(ROUTES.JOB_APPROVALS);
     },
-    onError: (err: any) => {
-      showErrorToast(err?.message || 'Không thể phê duyệt yêu cầu. Vui lòng thử lại.');
+    onError: (err) => {
+      showErrorToast(err.message || 'Không thể phê duyệt yêu cầu. Vui lòng thử lại.');
     },
   });
 
@@ -127,8 +127,8 @@ export function ApprovalDetailPage() {
       setIsRejectModalOpen(false);
       navigate(ROUTES.JOB_APPROVALS);
     },
-    onError: (err: any) => {
-      showErrorToast(err?.message || 'Không thể từ chối yêu cầu. Vui lòng thử lại.');
+    onError: (err) => {
+      showErrorToast(err.message || 'Không thể từ chối yêu cầu. Vui lòng thử lại.');
     },
   });
 
