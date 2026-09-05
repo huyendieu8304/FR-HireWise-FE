@@ -80,7 +80,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {...props}
           >
             {placeholder && (
-              <option value="" disabled>
+              // `disabled` chỉ khi field bắt buộc (`required`): lúc đó
+              // placeholder là một PROMPT ("Chọn phòng ban"), không phải giá
+              // trị thật — phải chặn không cho chọn để bắt buộc người dùng
+              // chọn 1 option thật. Field KHÔNG required thì placeholder
+              // thường tự nó là 1 giá trị hợp lệ ("Tất cả phòng ban", "Không
+              // gắn stage nào"...) đại diện cho "rỗng/tất cả" — phải để chọn
+              // được, kể cả chọn LẠI sau khi đã chọn option khác (vd bộ lọc
+              // trên danh sách). Trước đây luôn hard-code `disabled`, khiến
+              // mọi Select dùng placeholder kiểu bộ lọc không bao giờ bấm
+              // chọn lại được option đầu tiên.
+              <option value="" disabled={required}>
                 {placeholder}
               </option>
             )}
