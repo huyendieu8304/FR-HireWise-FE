@@ -34,6 +34,8 @@ interface NavItem {
    *
    */
   requiredPermission?: string;
+  /** Khi true: mục này không highlight xanh khi active, chỉ có hover. */
+  noActiveHighlight?: boolean;
 }
 
 function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined): boolean {
@@ -91,6 +93,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Tích hợp Cloud Storage',
     icon: CloudArrowUp,
     requiredPermission: 'INTEGRATION_MANAGE',
+    noActiveHighlight: true,
   },
   // UC-18: Calendar API (Google Calendar / Outlook) — CalendarIntegrationService yêu cầu INTEGRATION_MANAGE.
   {
@@ -194,7 +197,7 @@ export function AppShell() {
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
-                      isActive && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
+                      isActive && !item.noActiveHighlight && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
                     )
                   }
                 >
