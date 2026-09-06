@@ -65,6 +65,21 @@ export interface MoveApplicationStageResult {
   lastStageChangedAt: string;
 }
 
+/**
+ * Khớp `AiScreeningBatchResponseDto` — kết quả nút "Quét cả cột" (UC-21):
+ * AI Screening không còn tự động chạy khi ứng viên nộp hồ sơ nữa, Recruiter
+ * chủ động bấm nút này trên cột "Mới" để quét hàng loạt.
+ */
+export interface AiScreeningBatchResult {
+  totalApplications: number;
+  /** Số hồ sơ được queue phân tích (PENDING) — dispatcher sẽ gọi AI Engine thật. */
+  queuedCount: number;
+  /** Số hồ sơ bị bỏ qua ngay (thiếu CV hoặc CV không phải .pdf). */
+  skippedCount: number;
+  /** Số hồ sơ đã có điểm AI từ trước — không đụng tới, muốn phân tích lại thì dùng nút trên Applicant Card. */
+  alreadyAnalyzedCount: number;
+}
+
 // ============================================================
 // UC-24: Schedule Interview types
 // ============================================================

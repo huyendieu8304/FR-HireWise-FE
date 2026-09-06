@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Kanban as KanbanIcon } from '@phosphor-icons/react';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
 import { ROUTES } from '@/constants/routes';
-import { getKanbanBoard, moveApplicationStage } from '../api/kanbanApi';
+import { getKanbanBoard, moveApplicationStage, runAiScreeningBatch } from '../api/kanbanApi';
 import { KanbanColumn } from './KanbanColumn';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
 
@@ -15,18 +16,30 @@ interface KanbanBoardViewProps {
 
 /**
  * UC-22/UC-23/UC-24: bảng Kanban ứng viên của 1 Job cụ thể (kéo-thả để chuyển Stage,
- * popup lên lịch phỏng vấn khi kéo sang stage INTERVIEW)
+ * popup lên lịch phỏng vấn khi kéo sang stage INTERVIEW). UC-21: cột "Mới" (INTAKE)
+ * có thêm nút "Quét cả cột" để enqueue AI Screening hàng loạt (xem `KanbanColumn`).
  */
 export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   const notify = useNotification();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
+  // UI-only gate — quyền thật (AI_VIEW) luôn được backend kiểm tra lại; đây
+  // chỉ để ẩn nút với ai chắc chắn không có quyền (cùng pattern ApplicantCardPage).
+  const canRunAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
   const [dragState, setDragState] = useState<{
     applicationId: string;
     fromStageId: number;
   } | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
   const [movingApplicationId, setMovingApplicationId] = useState<string | null>(null);
+  const [scanningStageId, setScanningStageId] = useState<number | null>(null);
+  // UC-21: mốc thời gian dừng tự động làm mới board sau khi "Quét cả cột" -
+  // `null` = không poll. So sánh với `Date.now()` bên trong callback
+  // `refetchInterval` (gọi bởi TanStack Query, không phải lúc render) chứ
+  // không tính trực tiếp trong thân component — Date.now() là hàm impure,
+  // gọi thẳng trong render vi phạm quy tắc render phải thuần khiết.
+  const [aiPollingDeadline, setAiPollingDeadline] = useState<number | null>(null);
   const [interviewModalState, setInterviewModalState] = useState<{
     applicationId: string;
     candidateName: string;
@@ -42,6 +55,12 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   } = useQuery({
     queryKey: boardQueryKey,
     queryFn: () => getKanbanBoard(jobId),
+    // UC-21: badge % AI trên card (aiMatchScore) chỉ đổi khi
+    // event.AiScreeningDispatcher xử lý xong ở backend (vài chục giây sau,
+    // bất đồng bộ) - không tự đẩy dữ liệu về FE. Poll tạm thời (4s/lần,
+    // trong 2 phút) ngay sau khi "Quét cả cột" để % tự hiện lên mà không
+    // cần F5 trang, thay vì poll vĩnh viễn khi chẳng có gì để chờ.
+    refetchInterval: () => (aiPollingDeadline !== null && Date.now() < aiPollingDeadline ? 4000 : false),
   });
 
   const moveMutation = useMutation({
@@ -60,6 +79,46 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
       setMovingApplicationId(null);
     },
   });
+
+  // UC-21 "Quét cả cột": AI Screening giờ chạy hoàn toàn thủ công - nút này
+  // enqueue 1 lượt cho MỌI ứng viên CHƯA có điểm AI đang ở cột "Mới" thay vì
+  // bấm "Phân tích lại" từng thẻ (hồ sơ đã có điểm bị backend tự bỏ qua,
+  // không tốn thêm lời gọi Claude nào). Sau khi queue xong, bật poll board
+  // tạm thời (đặt `aiPollingDeadline` ở trên) để % tự hiện lên khi
+  // `event.AiScreeningDispatcher` xử lý xong, không cần F5 trang.
+  const scanColumnMutation = useMutation({
+    mutationFn: (stageId: number) => runAiScreeningBatch(jobId, stageId),
+    onSuccess: (result) => {
+      if (result.totalApplications === 0) {
+        notify.info('Cột này chưa có ứng viên nào để quét.');
+        return;
+      }
+      if (result.queuedCount === 0) {
+        notify.info(
+          result.alreadyAnalyzedCount > 0
+            ? `Cả ${result.alreadyAnalyzedCount} hồ sơ trong cột này đều đã có điểm AI từ trước.`
+            : 'Không có hồ sơ nào đủ điều kiện để phân tích (thiếu CV hoặc CV không phải .pdf).',
+        );
+        return;
+      }
+
+      const notes: string[] = [];
+      if (result.alreadyAnalyzedCount > 0) notes.push(`${result.alreadyAnalyzedCount} đã có điểm từ trước`);
+      if (result.skippedCount > 0) notes.push(`${result.skippedCount} bị bỏ qua do thiếu CV/không phải .pdf`);
+      notify.success(
+        `Đã bắt đầu phân tích AI cho ${result.queuedCount}/${result.totalApplications} hồ sơ` +
+          (notes.length > 0 ? ` (${notes.join(', ')}).` : '.'),
+      );
+      setAiPollingDeadline(Date.now() + 2 * 60 * 1000);
+    },
+    onError: (error) => notify.error(error),
+    onSettled: () => setScanningStageId(null),
+  });
+
+  function handleScanColumnAi(stageId: number) {
+    setScanningStageId(stageId);
+    scanColumnMutation.mutate(stageId);
+  }
 
   function handleDragStartCard(applicationId: string, fromStageId: number) {
     setDragState({ applicationId, fromStageId });
@@ -168,6 +227,9 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
             }
             onDrop={() => handleDrop(column.stageId)}
             onCardClick={handleCardClick}
+            canRunAi={canRunAi}
+            isScanningAi={scanningStageId === column.stageId}
+            onScanColumnAi={() => handleScanColumnAi(column.stageId)}
           />
         ))}
       </div>
