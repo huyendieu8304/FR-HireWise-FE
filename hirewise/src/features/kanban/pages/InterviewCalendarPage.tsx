@@ -3,20 +3,27 @@ import {
   CaretLeft,
   CaretRight,
   CalendarBlank,
+  CalendarCheck,
   VideoCamera,
   MapPin,
   User,
-  Clock,
+  Users,
+  FileText,
   ArrowSquareOut,
   X,
+  Copy,
+  Check,
+  ShieldCheck,
 } from '@phosphor-icons/react';
 import type { InterviewCalendarItem } from '@/features/kanban/types';
 import { getInterviewCalendar } from '@/features/kanban/api/interviewApi';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
+import { useNotification } from '@/hooks/useNotification';
 
 /* ─────────── helpers ─────────── */
 const DAYS_VN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const DAYS_FULL_VN = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 const MONTHS_VN = [
   'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
   'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
@@ -30,7 +37,7 @@ function toDateStr(d: Date) {
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
 function startOfWeek(d: Date) {
-  const day = d.getDay(); // 0=Sun
+  const day = d.getDay();
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
 }
 function endOfWeek(d: Date) {
@@ -49,20 +56,68 @@ function sameDay(a: Date, b: Date) {
     && a.getDate() === b.getDate();
 }
 function formatTime(t: string) {
-  // "09:30:00" -> "09:30"
   return t?.slice(0, 5) ?? '';
 }
 function formatDateVn(d: Date) {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
+/** Parse "HH:mm:ss" -> add 45 min -> "HH:mm" */
+function addMinutesToTime(t: string, minutes: number): string {
+  const [h, m] = t.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return `${pad(Math.floor(total / 60) % 24)}:${pad(total % 60)}`;
+}
+
+/** Tạo link Google Calendar Web để Interviewer/Recruiter lưu ngay vào lịch cá nhân */
+function getGoogleCalendarUrl(event: InterviewCalendarItem): string {
+  const title = encodeURIComponent(`Phỏng vấn ${event.candidateName} – ${event.jobTitle}`);
+  const [year, month, day] = event.interviewDate.split('-').map(Number);
+  const [hour, minute] = event.interviewTime.split(':').map(Number);
+  const startStr = `${year}${pad(month)}${pad(day)}T${pad(hour)}${pad(minute)}00`;
+  const totalEndMin = hour * 60 + minute + 45;
+  const endH = Math.floor(totalEndMin / 60) % 24;
+  const endM = totalEndMin % 60;
+  const endStr = `${year}${pad(month)}${pad(day)}T${pad(endH)}${pad(endM)}00`;
+  const details = encodeURIComponent(
+    `Ứng viên: ${event.candidateName} (${event.candidateEmail || 'N/A'})\n` +
+    `Vị trí tuyển dụng: ${event.jobTitle}\n` +
+    `Người phỏng vấn: ${event.interviewerNames.join(', ')}\n` +
+    (event.locationOrLink ? `Link/Địa điểm: ${event.locationOrLink}\n` : '') +
+    (event.notes ? `Ghi chú: ${event.notes}` : '')
+  );
+  const location = encodeURIComponent(event.locationOrLink || '');
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&location=${location}`;
+}
+
 type ViewMode = 'month' | 'week';
 
-const STATUS_COLORS: Record<string, { bg: string; dot: string; text: string }> = {
-  SCHEDULED: { bg: 'bg-blue-500/15 border-blue-400/40', dot: 'bg-blue-400', text: 'text-blue-300' },
-  COMPLETED: { bg: 'bg-emerald-500/15 border-emerald-400/40', dot: 'bg-emerald-400', text: 'text-emerald-300' },
-  CANCELLED: { bg: 'bg-red-500/15 border-red-400/40', dot: 'bg-red-400', text: 'text-red-300' },
-  NO_SHOW:   { bg: 'bg-amber-500/15 border-amber-400/40', dot: 'bg-amber-400', text: 'text-amber-300' },
+/* ── Status config (light-mode pastel tones) ── */
+const STATUS_COLORS: Record<string, { chip: string; dot: string; event: string; border: string }> = {
+  SCHEDULED: {
+    chip: 'bg-blue-50 text-blue-700 border-blue-200',
+    dot: 'bg-blue-500',
+    event: 'bg-blue-50/80 hover:bg-blue-100/70 text-blue-800 border-blue-200',
+    border: 'border-blue-200',
+  },
+  COMPLETED: {
+    chip: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+    event: 'bg-emerald-50/80 hover:bg-emerald-100/70 text-emerald-800 border-emerald-200',
+    border: 'border-emerald-200',
+  },
+  CANCELLED: {
+    chip: 'bg-rose-50 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
+    event: 'bg-rose-50/80 hover:bg-rose-100/70 text-rose-800 border-rose-200',
+    border: 'border-rose-200',
+  },
+  NO_SHOW: {
+    chip: 'bg-amber-50 text-amber-800 border-amber-200',
+    dot: 'bg-amber-500',
+    event: 'bg-amber-50/80 hover:bg-amber-100/70 text-amber-800 border-amber-200',
+    border: 'border-amber-200',
+  },
 };
 const STATUS_LABELS: Record<string, string> = {
   SCHEDULED: 'Đã xếp lịch',
@@ -71,7 +126,54 @@ const STATUS_LABELS: Record<string, string> = {
   NO_SHOW: 'Vắng mặt',
 };
 
-/* ─────────── Event Detail Modal ─────────── */
+/* ─────────── Google Meet 4-color Camera Icon & Badge ─────────── */
+function GoogleMeetIcon({ className = 'w-6 h-6' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 13.5L19.5 17V7L15 10.5V6C15 4.9 14.1 4 13 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H13C14.1 20 15 19.1 15 18V13.5Z" fill="#00832D" />
+      <path d="M15 8.5L19.5 5V19L15 15.5V8.5Z" fill="#00AC47" />
+      <path d="M15 6V10.5L9.5 6H15Z" fill="#EA4335" />
+      <path d="M4 6H9.5L4 10.5V6Z" fill="#2684FC" />
+      <path d="M4 18V13.5L9.5 18H4Z" fill="#0066DA" />
+      <path d="M15 18H9.5L15 13.5V18Z" fill="#FBBC04" />
+    </svg>
+  );
+}
+
+function GoogleMeetBadge() {
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200 shadow-xs">
+      <GoogleMeetIcon className="w-6 h-6" />
+    </div>
+  );
+}
+
+/* ─────────── Google Calendar Icon ─────────── */
+function GoogleCalendarIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="24" height="24" rx="4" fill="#ffffff" />
+      <path d="M19 4H18V2H16V4H8V2H6V4H5C3.89 4 3 4.9 3 6V20C3 21.1 3.89 22 5 22H19C20.1 22 21 21.1 21 20V6C21 4.9 20.1 4 19 4ZM19 20H5V9H19V20Z" fill="#1A73E8" />
+      <path d="M5 6H19V9H5V6Z" fill="#4285F4" />
+      <circle cx="8.5" cy="13" r="1.3" fill="#EA4335" />
+      <circle cx="15.5" cy="13" r="1.3" fill="#34A853" />
+      <circle cx="8.5" cy="17" r="1.3" fill="#FBBC04" />
+      <circle cx="15.5" cy="17" r="1.3" fill="#4285F4" />
+    </svg>
+  );
+}
+
+/* ─────────── InfoRow ─────────── */
+function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="mt-0.5 shrink-0 text-slate-400">{icon}</span>
+      <div className="text-sm text-slate-700 leading-relaxed flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/* ─────────── Event Detail Modal (Google Calendar style — Light) ─────────── */
 function EventDetailModal({
   event,
   onClose,
@@ -80,127 +182,236 @@ function EventDetailModal({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const notify = useNotification();
+  const [copied, setCopied] = useState(false);
   const colors = STATUS_COLORS[event.status] ?? STATUS_COLORS.SCHEDULED;
   const date = new Date(event.interviewDate + 'T00:00:00');
+  const startTime = formatTime(event.interviewTime);
+  const endTime = addMinutesToTime(event.interviewTime, 45);
+  const dayOfWeek = DAYS_FULL_VN[date.getDay()];
+
+  const isMeetLink = event.locationOrLink &&
+    (event.locationOrLink.includes('meet.google.com') || event.locationOrLink.includes('meet.jit.si'));
+
+  function handleCopyLink() {
+    if (event.locationOrLink) {
+      navigator.clipboard.writeText(event.locationOrLink);
+      setCopied(true);
+      notify.success('Đã sao chép link cuộc họp Google Meet.');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  /* Rút gọn "https://meet.google.com/abc-efgh-ijk" → "meet.google.com/abc-efgh-ijk" */
+  const shortLink = event.locationOrLink
+    ? event.locationOrLink.replace(/^https?:\/\//, '')
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* backdrop */}
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
       />
-      <div
-        className="relative w-full max-w-md rounded-2xl border border-white/10 shadow-2xl"
-        style={{
-          background: 'linear-gradient(145deg, #1e2235 0%, #161929 100%)',
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-white/10 p-5">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-              Chi tiết lịch phỏng vấn
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-white">{event.candidateName}</h2>
-            <p className="text-sm text-slate-400">{event.jobTitle}</p>
+
+      {/* Card — Google Calendar popup style */}
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Header strip + close button */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-3.5 bg-slate-50/60 border-b border-slate-100">
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${colors.chip}`}>
+                {STATUS_LABELS[event.status] ?? event.status}
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                Vị trí: <strong className="text-slate-800 font-semibold">{event.jobTitle}</strong>
+              </span>
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+              Phỏng vấn {event.candidateName} – {event.jobTitle}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="ml-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition"
+            title="Đóng"
           >
-            <X size={18} />
+            <X size={18} weight="bold" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="space-y-3 p-5">
-          {/* Status badge */}
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
-          >
-            <span className={`size-1.5 rounded-full ${colors.dot}`} />
-            {STATUS_LABELS[event.status] ?? event.status}
-          </span>
-
-          <div className="grid gap-2.5">
-            <InfoRow icon={<CalendarBlank size={15} className="text-slate-400" />}>
-              {formatDateVn(date)} &nbsp;•&nbsp;{' '}
-              <strong className="text-white">{formatTime(event.interviewTime)}</strong>
-            </InfoRow>
-
-            <InfoRow
-              icon={
-                event.mode === 'ONLINE'
-                  ? <VideoCamera size={15} className="text-blue-400" />
-                  : <MapPin size={15} className="text-orange-400" />
-              }
-            >
-              {event.mode === 'ONLINE' ? 'Online' : 'Onsite'}
-            </InfoRow>
-
-            {event.locationOrLink && (
-              <InfoRow icon={<ArrowSquareOut size={15} className="text-indigo-400" />}>
-                <a
-                  href={event.locationOrLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate text-indigo-400 underline underline-offset-2 hover:text-indigo-300"
-                >
-                  {event.locationOrLink}
-                </a>
-              </InfoRow>
-            )}
-
-            {event.interviewerNames.length > 0 && (
-              <InfoRow icon={<User size={15} className="text-slate-400" />}>
-                <span className="text-slate-300">
-                  {event.interviewerNames.join(', ')}
+        <div className="px-6 py-4 space-y-4">
+          {/* Thời gian */}
+          <div className="flex items-start gap-3">
+            <CalendarBlank size={18} className="mt-0.5 text-blue-600 shrink-0" weight="duotone" />
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                {dayOfWeek}, {formatDateVn(date)}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-600">
+                <span>{startTime} – {endTime}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                  45 phút
                 </span>
-              </InfoRow>
-            )}
+              </div>
+            </div>
+          </div>
 
-            <InfoRow icon={<Clock size={15} className="text-slate-400" />}>
-              <span className="text-slate-400 text-xs">
-                Email: {event.candidateEmail}
-              </span>
+          {/* Khối Google Meet nếu là online / có link */}
+          {event.locationOrLink && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3.5 flex items-start gap-3.5">
+              <GoogleMeetBadge />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Nút pill xanh Google Meet */}
+                  <a
+                    href={event.locationOrLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold px-4 py-2 transition shadow-sm active:scale-95"
+                  >
+                    <VideoCamera size={14} weight="fill" />
+                    {isMeetLink ? 'Tham gia bằng Google Meet' : 'Tham gia cuộc họp'}
+                  </a>
+
+                  {/* Nút copy link bên cạnh nút tham gia */}
+                  <button
+                    onClick={handleCopyLink}
+                    title="Sao chép link Google Meet"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={13} className="text-emerald-600" weight="bold" />
+                        <span className="text-emerald-600 font-medium">Đã chép</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} className="text-slate-500" />
+                        <span>Sao chép</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Đường link hiển thị dạng meet.google.com/xxx-yyyy-zzz */}
+                {shortLink && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    Link: <a
+                      href={event.locationOrLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[#1a73e8] hover:underline break-all"
+                    >
+                      {shortLink}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Địa điểm onsite (khi không phải meet link) */}
+          {event.mode === 'ONSITE' && event.locationOrLink && !isMeetLink && (
+            <InfoRow icon={<MapPin size={18} className="text-orange-500" weight="duotone" />}>
+              <div>
+                <span className="text-xs font-medium text-slate-500 block">Địa điểm phỏng vấn:</span>
+                <span className="text-sm text-slate-800 font-medium">{event.locationOrLink}</span>
+              </div>
             </InfoRow>
+          )}
+
+          {/* Ứng viên & Email */}
+          <InfoRow icon={<User size={18} className="text-slate-400" weight="duotone" />}>
+            <div>
+              <span className="text-xs font-medium text-slate-500 block">Ứng viên:</span>
+              <span className="text-sm font-semibold text-slate-800">{event.candidateName}</span>
+              {event.candidateEmail && (
+                <span className="text-xs text-slate-500 ml-1.5">({event.candidateEmail})</span>
+              )}
+            </div>
+          </InfoRow>
+
+          {/* Người phỏng vấn */}
+          {event.interviewerNames.length > 0 && (
+            <InfoRow icon={<Users size={18} className="text-slate-400" weight="duotone" />}>
+              <div>
+                <span className="text-xs font-medium text-slate-500 block">Người phỏng vấn:</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {event.interviewerNames.map((name, idx) => (
+                    <span key={idx} className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </InfoRow>
+          )}
+
+          {/* Ghi chú / mô tả */}
+          {event.notes && (
+            <InfoRow icon={<FileText size={18} className="text-slate-400" weight="duotone" />}>
+              <div>
+                <span className="text-xs font-medium text-slate-500 block">Ghi chú:</span>
+                <p className="text-xs text-slate-700 bg-slate-50 rounded-lg p-2.5 border border-slate-100 mt-1 leading-relaxed whitespace-pre-wrap">
+                  {event.notes}
+                </p>
+              </div>
+            </InfoRow>
+          )}
+
+          {/* Đồng bộ Google Calendar */}
+          <div className="rounded-xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 to-white p-3.5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <CalendarCheck size={16} className="text-blue-600" weight="duotone" />
+              <span className="text-xs font-semibold text-slate-800">
+                Đồng bộ Google Calendar
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">
+              Lưu sự kiện vào Google Calendar cá nhân để nhận thông báo trước giờ phỏng vấn và chủ động sắp xếp thời gian.
+            </p>
+            <div className="pt-0.5">
+              <a
+                href={getGoogleCalendarUrl(event)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-2xs active:scale-98"
+              >
+                <GoogleCalendarIcon className="w-4 h-4" />
+                <span>Thêm vào Google Calendar</span>
+              </a>
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-2 border-t border-white/10 p-4">
-          {event.locationOrLink && (
-            <a
-              href={event.locationOrLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
-            >
-              <VideoCamera size={16} />
-              Vào phòng họp
-            </a>
-          )}
+        {/* Footer actions */}
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-3.5">
           <button
             onClick={() => {
               navigate(ROUTES.APPLICATION_DETAIL.replace(':applicationId', event.applicationId));
               onClose();
             }}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/15 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition shadow-xs"
           >
-            Xem hồ sơ
+            <ArrowSquareOut size={14} />
+            Xem hồ sơ ứng viên
           </button>
+          {event.locationOrLink && (
+            <a
+              href={event.locationOrLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white px-3.5 py-1.5 text-xs font-medium transition shadow-sm"
+            >
+              <VideoCamera size={14} weight="fill" />
+              Vào phòng họp
+            </a>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 shrink-0">{icon}</span>
-      <span className="text-sm text-slate-300">{children}</span>
     </div>
   );
 }
@@ -217,15 +428,18 @@ function EventChip({
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-md border px-2 py-0.5 text-left text-xs transition hover:brightness-125 ${colors.bg} ${colors.text}`}
+      className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-left text-xs transition shadow-2xs hover:shadow-xs hover:brightness-95 ${colors.event}`}
     >
-      <span className={`size-1.5 shrink-0 rounded-full ${colors.dot}`} />
-      <span className="truncate font-medium">{formatTime(item.interviewTime)}</span>
-      <span className="truncate opacity-80">{item.candidateName}</span>
+      <span className="truncate font-bold tracking-tight text-slate-900 shrink-0">
+        {formatTime(item.interviewTime)}
+      </span>
+      <span className="truncate font-medium flex-1 text-slate-700">
+        {item.candidateName}
+      </span>
       {item.mode === 'ONLINE' ? (
-        <VideoCamera size={10} className="ml-auto shrink-0 opacity-60" />
+        <VideoCamera size={12} className="shrink-0 text-blue-600 opacity-70" weight="fill" />
       ) : (
-        <MapPin size={10} className="ml-auto shrink-0 opacity-60" />
+        <MapPin size={12} className="shrink-0 text-amber-600 opacity-70" weight="fill" />
       )}
     </button>
   );
@@ -245,9 +459,7 @@ function MonthView({
 }) {
   const firstDay = startOfMonth(cursor);
   const lastDay = endOfMonth(cursor);
-  // Grid starts from the Sunday of the first week
   const gridStart = startOfWeek(firstDay);
-  // Grid ends at the Saturday of the last week
   const gridEnd = endOfWeek(lastDay);
 
   const cells: Date[] = [];
@@ -268,18 +480,18 @@ function MonthView({
     day.getMonth() === cursor.getMonth() && day.getFullYear() === cursor.getFullYear();
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col">
       {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-white/10">
-        {DAYS_VN.map((d) => (
-          <div key={d} className="py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {d}
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
+        {DAYS_VN.map((dv) => (
+          <div key={dv} className="py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-slate-600">
+            {dv}
           </div>
         ))}
       </div>
 
       {/* Cells */}
-      <div className="grid grid-cols-7 flex-1 divide-x divide-white/5">
+      <div className="grid grid-cols-7 flex-1 divide-x divide-slate-200 border-b border-slate-200">
         {cells.map((day, i) => {
           const key = toDateStr(day);
           const dayItems = itemsByDate[key] ?? [];
@@ -290,26 +502,29 @@ function MonthView({
           return (
             <div
               key={i}
-              className={`relative min-h-[100px] border-b border-white/5 p-1.5 transition
-                ${!isCurrentMonth ? 'opacity-35' : ''}
-                ${isWeekend && isCurrentMonth ? 'bg-white/[0.02]' : ''}
+              className={`relative min-h-[110px] border-b border-slate-200 p-2 transition
+                ${!isCurrentMonth ? 'opacity-40 bg-slate-50/60' : ''}
+                ${isWeekend && isCurrentMonth ? 'bg-slate-50/30' : 'bg-white'}
               `}
             >
               {/* Day number */}
               <span
-                className={`mb-1 inline-flex size-6 items-center justify-center rounded-full text-xs font-medium
-                  ${isToday ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}
+                className={`mb-1.5 inline-flex size-6 items-center justify-center rounded-full text-xs font-medium
+                  ${isToday
+                    ? 'bg-blue-600 text-white font-bold shadow-xs'
+                    : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'
+                  }`}
               >
                 {day.getDate()}
               </span>
 
               {/* Events */}
-              <div className="space-y-0.5">
+              <div className="space-y-1.5">
                 {dayItems.slice(0, 3).map((item) => (
                   <EventChip key={item.interviewId} item={item} onClick={() => onSelectEvent(item)} />
                 ))}
                 {dayItems.length > 3 && (
-                  <p className="pl-1 text-xs text-slate-500">+{dayItems.length - 3} thêm</p>
+                  <p className="pl-1 text-xs text-slate-500 font-medium">+{dayItems.length - 3} thêm</p>
                 )}
               </div>
             </div>
@@ -341,7 +556,6 @@ function WeekView({
     if (!itemsByDate[k]) itemsByDate[k] = [];
     itemsByDate[k].push(item);
   }
-  // Sort by time
   for (const k of Object.keys(itemsByDate)) {
     itemsByDate[k].sort((a, b) => a.interviewTime.localeCompare(b.interviewTime));
   }
@@ -349,17 +563,17 @@ function WeekView({
   return (
     <div className="overflow-auto">
       {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-white/10">
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
         {days.map((day) => {
           const isToday = sameDay(day, today);
           return (
-            <div key={toDateStr(day)} className="py-3 text-center">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            <div key={toDateStr(day)} className="py-3 text-center border-r border-slate-200 last:border-r-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
                 {DAYS_VN[day.getDay()]}
               </p>
               <span
                 className={`mt-1 inline-flex size-8 items-center justify-center rounded-full text-sm font-semibold
-                  ${isToday ? 'bg-indigo-500 text-white' : 'text-slate-200'}`}
+                  ${isToday ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-800'}`}
               >
                 {day.getDate()}
               </span>
@@ -369,15 +583,15 @@ function WeekView({
       </div>
 
       {/* Events columns */}
-      <div className="grid min-h-[400px] grid-cols-7 divide-x divide-white/5">
+      <div className="grid min-h-[440px] grid-cols-7 divide-x divide-slate-200 bg-white">
         {days.map((day) => {
           const key = toDateStr(day);
           const dayItems = itemsByDate[key] ?? [];
           return (
-            <div key={key} className="space-y-1.5 p-2">
+            <div key={key} className="space-y-2 p-2 sm:p-2.5">
               {dayItems.length === 0 && (
-                <div className="flex h-full min-h-[60px] items-center justify-center">
-                  <span className="text-xs text-slate-700">—</span>
+                <div className="flex h-full min-h-[80px] items-center justify-center">
+                  <span className="text-xs text-slate-300">—</span>
                 </div>
               )}
               {dayItems.map((item) => {
@@ -386,21 +600,21 @@ function WeekView({
                   <button
                     key={item.interviewId}
                     onClick={() => onSelectEvent(item)}
-                    className={`w-full cursor-pointer rounded-lg border p-2 text-left transition hover:brightness-125 ${colors.bg} ${colors.text}`}
+                    className={`w-full cursor-pointer rounded-lg border p-2.5 text-left transition shadow-2xs hover:shadow-xs hover:brightness-95 ${colors.event}`}
                   >
-                    <p className="flex items-center gap-1 text-xs font-bold">
-                      <Clock size={10} />
-                      {formatTime(item.interviewTime)}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs font-medium">{item.candidateName}</p>
-                    <p className="truncate text-[11px] opacity-70">{item.jobTitle}</p>
-                    <div className="mt-1 flex items-center gap-1">
-                      {item.mode === 'ONLINE'
-                        ? <VideoCamera size={10} />
-                        : <MapPin size={10} />}
-                      <span className="text-[10px] opacity-70">
-                        {item.mode === 'ONLINE' ? 'Online' : 'Onsite'}
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-bold text-slate-900">{formatTime(item.interviewTime)}</span>
+                      <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-white/80 border border-slate-200/60 text-slate-600">
+                        {STATUS_LABELS[item.status] ?? item.status}
                       </span>
+                    </div>
+                    <p className="mt-1 truncate text-xs font-semibold text-slate-800">{item.candidateName}</p>
+                    <p className="truncate text-[11px] text-slate-600">{item.jobTitle}</p>
+                    <div className="mt-1.5 flex items-center gap-1 text-slate-500">
+                      {item.mode === 'ONLINE'
+                        ? <VideoCamera size={12} className="text-blue-600" weight="fill" />
+                        : <MapPin size={12} className="text-amber-600" weight="fill" />}
+                      <span className="text-[10px] font-medium">{item.mode === 'ONLINE' ? 'Google Meet' : 'Trực tiếp (Onsite)'}</span>
                     </div>
                   </button>
                 );
@@ -422,7 +636,6 @@ export function InterviewCalendarPage() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<InterviewCalendarItem | null>(null);
 
-  // Compute date range to fetch
   const fetchRange = useCallback(() => {
     if (viewMode === 'month') {
       const s = startOfWeek(startOfMonth(cursor));
@@ -444,7 +657,6 @@ export function InterviewCalendarPage() {
       .finally(() => setLoading(false));
   }, [fetchRange]);
 
-  // Navigation
   function navigate(dir: -1 | 1) {
     if (viewMode === 'month') {
       setCursor(addMonths(cursor, dir));
@@ -453,7 +665,6 @@ export function InterviewCalendarPage() {
     }
   }
 
-  // Title
   const title =
     viewMode === 'month'
       ? `${MONTHS_VN[cursor.getMonth()]} ${cursor.getFullYear()}`
@@ -463,71 +674,71 @@ export function InterviewCalendarPage() {
           return `${formatDateVn(ws)} – ${formatDateVn(we)}`;
         })();
 
-  const totalScheduled = items.filter((i) => i.status === 'SCHEDULED').length;
+  const todayStr = toDateStr(today);
+  const todayCount = items.filter((i) => i.interviewDate === todayStr).length;
 
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-      {/* ── Page shell ── */}
-      <div
-        className="flex flex-1 flex-col rounded-2xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(160deg, #0f1221 0%, #111827 50%, #0d1117 100%)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
+      {/* ── Page shell — Light ── */}
+      <div className="flex flex-1 flex-col rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+
         {/* ── Toolbar ── */}
-        <div
-          className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4"
-          style={{ background: 'rgba(255,255,255,0.03)' }}
-        >
-          {/* Left: title + nav */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/20">
-              <CalendarBlank size={18} className="text-indigo-400" weight="duotone" />
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-3.5">
+
+          {/* Left: icon + title */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
+              <CalendarBlank size={18} className="text-blue-600" weight="duotone" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-white">Lịch phỏng vấn</h1>
-              <p className="text-xs text-slate-400">
-                {totalScheduled} buổi đang xếp lịch
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold text-slate-900">Lịch phỏng vấn</h1>
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200" title="Chỉ hiển thị lịch phỏng vấn bạn tham gia hoặc phụ trách">
+                  <ShieldCheck size={12} className="text-blue-600" weight="bold" />
+                  Chỉ lịch liên quan
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Hôm nay: <span className="font-semibold text-blue-600">{todayCount}</span> lịch
               </p>
             </div>
           </div>
 
-          {/* Center: nav */}
+          {/* Center: navigation */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 text-slate-300 transition hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
             >
               <CaretLeft size={14} />
             </button>
             <button
               onClick={() => setCursor(new Date(today.getFullYear(), today.getMonth(), 1))}
-              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
             >
               Hôm nay
             </button>
             <button
               onClick={() => navigate(1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 text-slate-300 transition hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
             >
               <CaretRight size={14} />
             </button>
-            <span className="ml-1 min-w-[180px] text-center text-sm font-semibold text-white">
+            <span className="ml-1 min-w-[180px] text-center text-sm font-semibold text-slate-900">
               {title}
             </span>
           </div>
 
-          {/* Right: view toggle + legend */}
+          {/* Right: legend + view toggle */}
           <div className="flex items-center gap-3">
             {/* Status legend */}
             <div className="hidden items-center gap-3 md:flex">
               {Object.entries(STATUS_LABELS).map(([k, label]) => {
                 const c = STATUS_COLORS[k];
                 return (
-                  <span key={k} className="flex items-center gap-1 text-xs text-slate-400">
+                  <span key={k} className="flex items-center gap-1 text-xs text-slate-500">
                     <span className={`size-2 rounded-full ${c.dot}`} />
                     {label}
                   </span>
@@ -536,15 +747,15 @@ export function InterviewCalendarPage() {
             </div>
 
             {/* View toggle */}
-            <div className="flex rounded-lg border border-white/15 p-0.5">
+            <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
               {(['month', 'week'] as ViewMode[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setViewMode(v)}
                   className={`rounded-md px-3 py-1 text-xs font-medium transition
                     ${viewMode === v
-                      ? 'bg-indigo-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-800'
                     }`}
                 >
                   {v === 'month' ? 'Tháng' : 'Tuần'}
@@ -555,12 +766,12 @@ export function InterviewCalendarPage() {
         </div>
 
         {/* ── Calendar body ── */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 bg-white">
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm">
               <div className="flex flex-col items-center gap-2">
-                <div className="size-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                <span className="text-xs text-slate-400">Đang tải lịch...</span>
+                <div className="size-7 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <span className="text-xs text-slate-500">Đang tải lịch...</span>
               </div>
             </div>
           )}

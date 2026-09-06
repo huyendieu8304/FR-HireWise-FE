@@ -124,6 +124,7 @@ export interface InterviewCalendarItem {
   locationOrLink: string | null;
   status: InterviewStatus;
   interviewerNames: string[];
+  notes: string | null;
 }
 
 

@@ -59,7 +59,7 @@ export function CalendarConnectionStatusCard({
     <div className="shadow-elevation-1 bg-neutral-0 flex flex-col gap-4 rounded-lg border border-neutral-200 p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="bg-primary-50 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-lg">
+          <span className="bg-neutral-100 text-neutral-600 flex size-10 shrink-0 items-center justify-center rounded-lg">
             <StatusIcon className="size-5" />
           </span>
           <div>
