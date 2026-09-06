@@ -82,7 +82,6 @@ export function ApplicantCardPage() {
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const canView = currentUser?.permissions.includes('APPLICATION_VIEW') ?? false;
   const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
-  const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
   const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
   const canSendOffer = currentUser?.permissions.includes('OFFER_SEND') ?? false;
 
