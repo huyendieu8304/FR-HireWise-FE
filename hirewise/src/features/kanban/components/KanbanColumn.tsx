@@ -1,4 +1,6 @@
+import { Sparkle } from '@phosphor-icons/react';
 import { Badge } from '@/components/ui/Badge/Badge';
+import { Button } from '@/components/ui/Button/Button';
 import { cn } from '@/utils/cn';
 import { ApplicationCard } from './ApplicationCard';
 import type { KanbanStageColumn } from '../types';
@@ -15,6 +17,12 @@ interface KanbanColumnProps {
   onDrop: () => void;
   /** UC-20: mở Applicant Card chi tiết của 1 Application. */
   onCardClick: (applicationId: string) => void;
+  /** UC-21: có quyền `AI_VIEW` không — ẩn nút "Quét cả cột" nếu không. */
+  canRunAi: boolean;
+  /** UC-21: cột này đang chạy "Quét cả cột" (disable nút + hiện spinner). */
+  isScanningAi: boolean;
+  /** UC-21: bấm "Quét cả cột" — chỉ hiện trên cột INTAKE ("Mới"). */
+  onScanColumnAi: () => void;
 }
 
 /**
@@ -39,7 +47,16 @@ export function KanbanColumn({
   onDragLeave,
   onDrop,
   onCardClick,
+  canRunAi,
+  isScanningAi,
+  onScanColumnAi,
 }: KanbanColumnProps) {
+  // UC-21: nút "Quét cả cột" chỉ hiện trên cột INTAKE ("Mới" - nơi CV vừa
+  // nộp vào còn chưa được phân tích) và khi cột có ít nhất 1 ứng viên -
+  // AI Screening giờ chạy hoàn toàn thủ công (không còn tự động khi apply),
+  // nút này là cách quét hàng loạt thay vì bấm "Phân tích lại" từng thẻ.
+  const showScanButton = canRunAi && column.stageType === 'INTAKE' && column.applications.length > 0;
+
   return (
     <div
       onDragOver={(e) => {
@@ -65,9 +82,28 @@ export function KanbanColumn({
             </Badge>
           )}
         </div>
-        <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600">
-          {column.applications.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {showScanButton && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              isLoading={isScanningAi}
+              disabled={isScanningAi}
+              title="Quét AI toàn bộ hồ sơ trong cột này"
+              aria-label="Quét AI toàn bộ hồ sơ trong cột này"
+              onClick={(e) => {
+                e.stopPropagation();
+                onScanColumnAi();
+              }}
+            >
+              {!isScanningAi && <Sparkle className="size-3.5 text-primary-600" weight="fill" />}
+            </Button>
+          )}
+          <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+            {column.applications.length}
+          </span>
+        </div>
       </div>
 
       <div className="flex min-h-24 flex-col gap-2">
