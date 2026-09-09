@@ -30,6 +30,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
 import { JobLifecycleActions } from '../components/JobLifecycleActions';
 import { ShareJobModal } from '../components/ShareJobModal';
+import { SharePerformancePanel } from '../components/SharePerformancePanel';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -292,6 +293,12 @@ export function JobDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* UC-32: chi hien khi Job da tung co the chia se duoc - Draft/Pending
+              chua co link nao ton tai nen bang so lieu chac chan rong. */}
+          {(job.status === 'PUBLISHED' || job.status === 'PAUSED' || job.status === 'CLOSED') && (
+            <SharePerformancePanel jobId={job.id} />
+          )}
         </div>
       ) : (
         <KanbanBoardView jobId={job.id} />
