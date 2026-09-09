@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   Calendar,
   Clock,
@@ -10,22 +10,27 @@ import {
   Sparkle,
   ShieldCheck,
 } from '@phosphor-icons/react';
-import { getBookingPage } from '../api/bookingPublicApi';
+import { getBookingPage, confirmBookingSlot } from '../api/bookingPublicApi';
 import { SlotCalendar } from '../components/SlotCalendar';
 import { SlotTimePicker } from '../components/SlotTimePicker';
 import { BookingExpired } from '../components/BookingExpired';
+import { BookingConfirmed } from '../components/BookingConfirmed';
+import type { BookingConfirmResponse } from '../types';
 
 export function PublicBookingPage() {
   const { token } = useParams<{ token: string }>();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+  const [confirmation, setConfirmation] = useState<BookingConfirmResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const {
     data: bookingData,
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['booking', 'public', token],
     queryFn: () => getBookingPage(token!),
@@ -55,7 +60,7 @@ export function PublicBookingPage() {
     return dates;
   }, [bookingData?.slots]);
 
-  // Auto-select first date that has available slots or configured slots
+  // Set default selected date to first open date or first configured date
   useMemo(() => {
     if (!selectedDate) {
       if (openDates.size > 0) {
@@ -74,7 +79,33 @@ export function PublicBookingPage() {
     return bookingData.slots.filter((s) => s.slotDate === selectedDate);
   }, [bookingData?.slots, selectedDate]);
 
-  // 1. Loading Skeleton
+  // Confirm booking mutation
+  const confirmMutation = useMutation({
+    mutationFn: ({ slotId, notes }: { slotId: number; notes?: string }) =>
+      confirmBookingSlot(token!, { slotId, notes }),
+    onSuccess: (data) => {
+      setConfirmation(data);
+      setErrorMessage(null);
+    },
+    onError: (err: any) => {
+      const errorDetail =
+        err?.response?.data?.message ||
+        'Khung giờ này vừa có người đặt hoặc không còn khả dụng. Vui lòng chọn khung giờ khác.';
+      setErrorMessage(errorDetail);
+      refetch();
+    },
+  });
+
+  // 1. Confirmed View
+  if (confirmation) {
+    return (
+      <div className="min-h-screen bg-neutral-50/50 py-12 px-4 flex items-center justify-center">
+        <BookingConfirmed confirmation={confirmation} />
+      </div>
+    );
+  }
+
+  // 2. Loading Skeleton
   if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-50/60 py-12 px-4 flex items-center justify-center">
@@ -93,20 +124,23 @@ export function PublicBookingPage() {
     );
   }
 
-  // 2. Expired / Inactive / Error View
+  // 3. Expired or Invalid View
   if (isError || !bookingData || bookingData.status !== 'OPEN') {
-    const errorStatus = (error as any)?.response?.status;
-    const message =
-      bookingData?.status === 'COMPLETED'
-        ? 'Buổi phỏng vấn đã được xác nhận thành công trước đó.'
-        : bookingData?.status === 'EXPIRED'
-          ? 'Liên kết chọn lịch đã hết hạn.'
-          : errorStatus === 404
-            ? 'Liên kết không tồn tại hoặc đã bị hủy.'
-            : undefined;
+    const isExpired =
+      bookingData?.status === 'EXPIRED' ||
+      bookingData?.status === 'COMPLETED' ||
+      (error as any)?.response?.status === 409 ||
+      (error as any)?.response?.status === 404;
+
     return (
       <div className="min-h-screen bg-neutral-50/50 py-12 px-4 flex items-center justify-center">
-        <BookingExpired message={message} />
+        <BookingExpired
+          message={
+            isExpired
+              ? 'Liên kết phỏng vấn này đã hết hạn, đã hoàn thành hoặc không còn khả dụng.'
+              : undefined
+          }
+        />
       </div>
     );
   }
@@ -114,82 +148,73 @@ export function PublicBookingPage() {
   const isOnline = bookingData.mode === 'ONLINE';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-primary-50/20 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Main Card */}
-        <div className="overflow-hidden rounded-3xl border border-neutral-200/80 bg-white shadow-xl transition-all flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-slate-50 to-primary-50/30 py-8 md:py-16 px-4 flex items-center justify-center">
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-xl">
+        <div className="flex flex-col md:flex-row">
           {/* Left Column: Interview Details */}
-          <div className="w-full md:w-80 bg-neutral-50/70 p-6 md:p-8 border-b md:border-b-0 md:border-r border-neutral-200/60 flex flex-col justify-between">
-            <div className="space-y-6">
-              {/* Brand Header */}
-              <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-primary-600 text-white font-bold shadow-sm">
-                  HW
+          <div className="w-full md:w-2/5 border-b md:border-b-0 md:border-r border-neutral-200/70 p-6 md:p-8 bg-neutral-50/40 flex flex-col justify-between">
+            <div className="space-y-5">
+              {/* Brand & Badge */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-primary-600 text-white font-black text-sm">
+                    H
+                  </div>
+                  <span className="font-bold tracking-tight text-neutral-900 text-sm">
+                    HireWise
+                  </span>
                 </div>
-                <div className="leading-tight">
-                  <div className="text-sm font-bold text-neutral-900">HireWise</div>
-                  <div className="text-[11px] text-neutral-500 font-medium">Lịch phỏng vấn</div>
-                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                  <Sparkle className="size-3" weight="fill" />
+                  Self-service
+                </span>
               </div>
 
-              {/* Position & Candidate Info */}
-              <div className="pt-2 border-t border-neutral-200/60">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-100/60 mb-2">
-                  <Sparkle className="size-3.5" weight="fill" />
+              {/* Header Info */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
                   Mời phỏng vấn
-                </div>
-                <h1 className="text-xl font-bold text-neutral-900 leading-snug">
+                </p>
+                <h1 className="mt-1 text-xl font-extrabold text-neutral-900 leading-tight">
                   {bookingData.jobTitle}
                 </h1>
-                <p className="text-sm text-neutral-600 mt-1">
-                  Chào <span className="font-semibold text-neutral-800">{bookingData.candidateName}</span>, hãy chọn một khung giờ phù hợp với bạn để tham gia phỏng vấn.
+                <p className="mt-1 text-sm text-neutral-600">
+                  Chào <strong className="text-neutral-900">{bookingData.candidateName}</strong>, vui lòng chọn một khung giờ phỏng vấn phù hợp bên dưới.
                 </p>
               </div>
 
-              {/* Meta Info */}
-              <div className="space-y-3.5 pt-2 text-sm text-neutral-700">
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-600 shrink-0">
-                    <User className="size-4" weight="bold" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-neutral-500">Người phỏng vấn</div>
-                    <div className="font-medium text-neutral-900">{bookingData.interviewerName}</div>
-                  </div>
+              {/* Meta Specs */}
+              <div className="rounded-xl border border-neutral-200/70 bg-white p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center gap-2.5 text-sm text-neutral-700">
+                  <Clock className="size-4.5 text-neutral-400" />
+                  <span>Thời lượng: <strong>45 phút</strong></span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-600 shrink-0">
-                    <Clock className="size-4" weight="bold" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-neutral-500">Thời lượng dự kiến</div>
-                    <div className="font-medium text-neutral-900">45 phút</div>
-                  </div>
+                <div className="flex items-center gap-2.5 text-sm text-neutral-700">
+                  {isOnline ? (
+                    <VideoCamera className="size-4.5 text-emerald-600" />
+                  ) : (
+                    <Buildings className="size-4.5 text-primary-600" />
+                  )}
+                  <span>
+                    Hình thức:{' '}
+                    <strong>{isOnline ? 'Online qua Google Meet' : 'Trực tiếp tại văn phòng'}</strong>
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-600 shrink-0">
-                    {isOnline ? (
-                      <VideoCamera className="size-4" weight="bold" />
-                    ) : (
-                      <Buildings className="size-4" weight="bold" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs text-neutral-500">Hình thức phỏng vấn</div>
-                    <div className="font-medium text-neutral-900">
-                      {isOnline ? 'Phỏng vấn Trực tuyến (Online)' : 'Phỏng vấn Trực tiếp (Offline)'}
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2.5 text-sm text-neutral-700">
+                  <User className="size-4.5 text-neutral-400" />
+                  <span>
+                    Người phỏng vấn: <strong>{bookingData.interviewerName}</strong>
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Security note footer */}
-            <div className="mt-8 pt-4 border-t border-neutral-200/50 flex items-center gap-2 text-xs text-neutral-400">
-              <ShieldCheck className="size-4 text-emerald-500 shrink-0" weight="bold" />
-              <span>Liên kết bảo mật xác thực tự động</span>
+            <div className="mt-6 pt-4 border-t border-neutral-200/60 flex items-center gap-2 text-xs text-neutral-400">
+              <ShieldCheck className="size-4 text-emerald-600 shrink-0" weight="fill" />
+              <span>Lịch hẹn sẽ tự động lưu vào Calendar và gửi email xác nhận.</span>
             </div>
           </div>
 
@@ -204,6 +229,7 @@ export function PublicBookingPage() {
                   onSelectDate={(d) => {
                     setSelectedDate(d);
                     setSelectedSlotId(null);
+                    setErrorMessage(null);
                   }}
                   minDate={bookingData.dateRangeStart}
                   maxDate={bookingData.dateRangeEnd}
@@ -219,9 +245,13 @@ export function PublicBookingPage() {
                     selectedSlotId={selectedSlotId}
                     onSelectSlot={(id) => {
                       setSelectedSlotId(id);
+                      setErrorMessage(null);
                     }}
-                    onConfirm={() => {}}
-                    isSubmitting={false}
+                    onConfirm={(slotId, notes) =>
+                      confirmMutation.mutate({ slotId, notes })
+                    }
+                    isSubmitting={confirmMutation.isPending}
+                    errorMessage={errorMessage}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center p-8 text-center text-sm text-neutral-400">
