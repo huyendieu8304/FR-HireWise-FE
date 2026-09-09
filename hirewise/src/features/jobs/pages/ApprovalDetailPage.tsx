@@ -7,9 +7,12 @@ import {
   Buildings,
   CalendarBlank,
   CheckCircle,
+  ClipboardText,
   CurrencyCircleDollar,
   GitBranch,
   MapPin,
+  PencilSimple,
+  Plus,
   Users,
   WarningCircle,
   XCircle,
@@ -27,7 +30,9 @@ import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { Modal } from '@/components/ui/Modal/Modal';
 import { showSuccessToast, showErrorToast } from '@/components/ui/Toast/toastBus';
 import { approveJob, getJobApprovalDetail, rejectJob } from '../api/approvalApi';
-import { EMPLOYMENT_TYPE_LABELS } from '../types';
+import { getJobStageScorecard } from '@/features/scorecards/api/scorecardsApi';
+import { JobStageScorecardFormModal } from '@/features/scorecards/components/JobStageScorecardFormModal';
+import { EMPLOYMENT_TYPE_LABELS, type InterviewStageScorecardStatus } from '../types';
 import { STAGE_TYPE_LABELS, type StageType } from '@/features/pipelines/types';
 import { formatSalaryRange } from '../utils';
 import { formatDate, formatRelativeTime } from '@/utils/formatters';
@@ -96,6 +101,8 @@ export function ApprovalDetailPage() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectError, setRejectError] = useState<string | null>(null);
+  // UC-27 hard gate: Stage đang mở modal cấu hình/sửa Scorecard (null = đóng).
+  const [scorecardModalStage, setScorecardModalStage] = useState<InterviewStageScorecardStatus | null>(null);
 
   const {
     data: job,
@@ -105,6 +112,14 @@ export function ApprovalDetailPage() {
     queryKey: ['job-approvals', 'detail', jobId],
     queryFn: () => getJobApprovalDetail(jobId!),
     enabled: !!jobId,
+  });
+
+  // Chỉ fetch chi tiết Scorecard hiện có khi Stage ĐÃ cấu hình (bấm "Sửa") -
+  // bấm "Cấu hình" (chưa có) mở thẳng form trống, không cần gọi API trước.
+  const { data: existingScorecard, isLoading: isLoadingExistingScorecard } = useQuery({
+    queryKey: ['job-stage-scorecard', jobId, scorecardModalStage?.pipelineStageId],
+    queryFn: () => getJobStageScorecard(jobId!, scorecardModalStage!.pipelineStageId),
+    enabled: !!jobId && !!scorecardModalStage?.configured,
   });
 
   const approveMutation = useMutation({
@@ -185,6 +200,9 @@ export function ApprovalDetailPage() {
   };
 
   const isPending = job.status === 'PENDING_APPROVAL';
+  // UC-27 hard gate: mọi Stage loại phỏng vấn phải có Scorecard ACTIVE trước khi Approve.
+  const missingScorecardStages = job.interviewStageScorecards.filter((s) => !s.configured);
+  const scorecardGateBlocking = isPending && missingScorecardStages.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -378,6 +396,53 @@ export function ApprovalDetailPage() {
             )}
           </div>
 
+          {/* UC-27 hard gate: checklist cấu hình Scorecard theo từng Stage phỏng vấn */}
+          {job.interviewStageScorecards.length > 0 && (
+            <div className="rounded-lg border border-neutral-200 bg-white p-6">
+              <div className="flex items-center gap-2 border-b border-neutral-100 pb-3">
+                <ClipboardText className="size-5 text-primary-600" />
+                <h2 className="text-base font-bold text-neutral-900">Scorecard theo Stage phỏng vấn</h2>
+              </div>
+              <p className="mt-3 text-xs text-neutral-500">
+                Mỗi Stage loại phỏng vấn cần 1 Scorecard riêng — bắt buộc cấu hình đầy đủ trước khi phê duyệt job
+                này (vẫn sửa lại được bất cứ lúc nào sau khi đã phê duyệt).
+              </p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {job.interviewStageScorecards.map((stage) => (
+                  <li
+                    key={stage.pipelineStageId}
+                    className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {stage.configured ? (
+                        <CheckCircle className="size-5 shrink-0 text-success-600" weight="fill" />
+                      ) : (
+                        <WarningCircle className="size-5 shrink-0 text-warning-500" />
+                      )}
+                      <span className="text-sm font-medium text-neutral-800">{stage.stageName}</span>
+                      <Badge variant={stage.configured ? 'success' : 'warning'}>
+                        {stage.configured ? 'Đã cấu hình' : 'Chưa cấu hình'}
+                      </Badge>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setScorecardModalStage(stage)}>
+                      {stage.configured ? (
+                        <>
+                          <PencilSimple className="mr-1.5 size-4" />
+                          Sửa
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-1.5 size-4" />
+                          Cấu hình
+                        </>
+                      )}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* JD Block 1: Mô tả công việc */}
           <div className="rounded-lg border border-neutral-200 bg-white p-6">
             <h2 className="text-base font-bold text-neutral-900">1. Mô tả công việc</h2>
@@ -416,11 +481,18 @@ export function ApprovalDetailPage() {
 
             {isPending ? (
               <div className="mt-5 flex flex-col gap-2.5">
+                {scorecardGateBlocking && (
+                  <p className="rounded-md bg-warning-50 p-2.5 text-xs text-warning-800">
+                    Cần cấu hình Scorecard cho {missingScorecardStages.length} Stage phỏng vấn còn thiếu (xem bên
+                    dưới) trước khi phê duyệt.
+                  </p>
+                )}
                 <Button
                   variant="primary"
                   fullWidth
                   isLoading={approveMutation.isPending}
-                  disabled={rejectMutation.isPending}
+                  disabled={rejectMutation.isPending || scorecardGateBlocking}
+                  title={scorecardGateBlocking ? 'Cấu hình đủ Scorecard cho mọi Stage phỏng vấn trước' : undefined}
                   onClick={() => approveMutation.mutate()}
                   className="bg-success-600 hover:bg-success-700 active:bg-success-800"
                 >
@@ -546,6 +618,18 @@ export function ApprovalDetailPage() {
           </div>
         </div>
       </Modal>
+
+      {scorecardModalStage && (!scorecardModalStage.configured || !isLoadingExistingScorecard) && (
+        <JobStageScorecardFormModal
+          open
+          onClose={() => setScorecardModalStage(null)}
+          jobId={job.id}
+          pipelineStageId={scorecardModalStage.pipelineStageId}
+          stageName={scorecardModalStage.stageName}
+          existing={scorecardModalStage.configured ? existingScorecard : undefined}
+          onSaved={() => setScorecardModalStage(null)}
+        />
+      )}
     </div>
   );
 }

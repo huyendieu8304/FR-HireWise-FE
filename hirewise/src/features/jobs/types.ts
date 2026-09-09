@@ -114,6 +114,22 @@ export interface JobApprovalDetail {
   pipelineTemplateName: string | null;
   /** Danh sách các bước trong quy trình tuyển dụng. */
   pipelineStages: PipelineStage[];
+  /**
+   * UC-27 hard gate: checklist cấu hình Scorecard cho từng Stage loại
+   * INTERVIEW của pipeline này — phải `configured: true` hết mới được
+   * Approve. Rỗng nếu pipeline không có Stage phỏng vấn nào.
+   */
+  interviewStageScorecards: InterviewStageScorecardStatus[];
+}
+
+/** Khớp `InterviewStageScorecardStatusDto`. */
+export interface InterviewStageScorecardStatus {
+  pipelineStageId: number;
+  stageName: string;
+  position: number;
+  configured: boolean;
+  /** `null` nếu `configured = false`. */
+  jobStageScorecardId: string | null;
 }
 
 /** Body gửi lên khi từ chối Job (UC-15 AF-01). */

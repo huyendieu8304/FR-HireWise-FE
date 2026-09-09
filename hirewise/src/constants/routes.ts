@@ -18,6 +18,8 @@ export const ROUTES = {
   CAREERS_APPLY: '/careers/:jobId/apply',
   SETTINGS_INTEGRATIONS: '/settings/integrations',
   PIPELINE_TEMPLATES: '/settings/pipeline-templates',
+  /** UC-27: Hiring Manager cấu hình Scorecard Template (tiêu chí đánh giá phỏng vấn). */
+  SCORECARD_TEMPLATES: '/settings/scorecard-templates',
   SETTINGS_EMAIL_TEMPLATES: '/settings/email-templates',
   /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */
   JOB_APPROVALS: '/approvals',

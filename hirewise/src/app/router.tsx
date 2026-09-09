@@ -16,6 +16,7 @@ import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { CalendarIntegrationPage } from '@/features/integrations/pages/CalendarIntegrationPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
+import { ScorecardTemplatesPage } from '@/features/scorecards/pages/ScorecardTemplatesPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
@@ -64,6 +65,8 @@ export const router = createBrowserRouter([
             element: <CalendarIntegrationPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
+          /** UC-27: Hiring Manager cấu hình Scorecard Template. */
+          { path: ROUTES.SCORECARD_TEMPLATES, element: <ScorecardTemplatesPage /> },
           /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
           { path: ROUTES.JOBS, element: <JobListPage /> },
           /** UC-12: tạo mới / lưu nháp lại Job Position — cùng 1 trang form. */
