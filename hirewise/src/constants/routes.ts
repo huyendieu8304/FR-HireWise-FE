@@ -33,5 +33,7 @@ export const ROUTES = {
   INTERVIEW_CALENDAR: '/interviews/calendar',
   /** UC-38/UC-39: trang ứng viên mở từ liên kết bảo mật trong email EM-11 — xác thực OTP rồi ký điện tử. */
   OFFER_PUBLIC: '/offer/:token',
+  /** UC-34/UC-35: trang ứng viên tự chọn giờ phỏng vấn từ liên kết trong email EM-06. */
+  BOOKING_PUBLIC: '/booking/:token',
 } as const;
 
