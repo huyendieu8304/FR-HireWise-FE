@@ -62,4 +62,10 @@ export interface CreateOfferRequest {
   startDate: string;
   /** ISO instant. */
   expiresAt: string;
+  /**
+   * UC-23: id Stage kiểu OFFER mà thẻ được kéo tới trên Kanban. Bỏ trống
+   * (nút [Tạo Offer] trong Applicant Card) thì hồ sơ phải sẵn ở Stage Offer;
+   * có giá trị thì backend chuyển Stage trong cùng transaction tạo Offer.
+   */
+  targetStageId?: number;
 }

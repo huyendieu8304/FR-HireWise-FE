@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
 import { ROUTES } from '@/constants/routes';
+import { RejectApplicationModal } from '@/features/applications/components/RejectApplicationModal';
+import { CreateOfferModal } from '@/features/offers/components/CreateOfferModal';
 import { getKanbanBoard, moveApplicationStage, runAiScreeningBatch } from '../api/kanbanApi';
 import { KanbanColumn } from './KanbanColumn';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
@@ -15,9 +17,35 @@ interface KanbanBoardViewProps {
 }
 
 /**
- * UC-22/UC-23/UC-24: bảng Kanban ứng viên của 1 Job cụ thể (kéo-thả để chuyển Stage,
- * popup lên lịch phỏng vấn khi kéo sang stage INTERVIEW). UC-21: cột "Mới" (INTAKE)
- * có thêm nút "Quét cả cột" để enqueue AI Screening hàng loạt (xem `KanbanColumn`).
+ * UC-23: thao tác bắt buộc phải hoàn tất trước khi việc chuyển Stage được ghi
+ * nhận, khi thẻ được thả vào 1 cột "quan trọng". Mỗi nhánh mở đúng dialog mà
+ * Applicant Card dùng cho hành động đó, nên hai lối vào cho cùng 1 nghiệp vụ
+ * không bao giờ lệch nhau.
+ */
+type PendingStageAction = {
+  kind: 'INTERVIEW' | 'OFFER' | 'REJECT';
+  applicationId: string;
+  candidateName: string;
+  targetStageId: number;
+  targetStageName: string;
+};
+
+/**
+ * UC-22/UC-23/UC-24: bảng Kanban ứng viên của 1 Job cụ thể (kéo-thả để chuyển Stage).
+ * UC-21: cột "Mới" (INTAKE) có thêm nút "Quét cả cột" để enqueue AI Screening hàng
+ * loạt (xem `KanbanColumn`).
+ *
+ * Thả vào 1 cột "quan trọng" không chuyển Stage ngay mà mở dialog tương ứng —
+ * đúng dialog của nút trong Applicant Card — và chỉ khi hành động hoàn tất thì
+ * Stage mới đổi (xem `PendingStageAction`, `handleDrop`):
+ *
+ * - `INTERVIEW` -> lên lịch phỏng vấn (`ScheduleInterviewModal`)
+ * - `OFFER` -> tạo Offer nháp (`CreateOfferModal`, UC-36)
+ * - `TERMINAL_REJECTED` -> chọn lý do từ chối (`RejectApplicationModal`, UC-29/30)
+ * - `TERMINAL_SUCCESS` -> chặn hẳn: `HIRED` chỉ đến từ việc ứng viên ký Offer (UC-39)
+ *
+ * Bấm Hủy trong mọi dialog là board đứng yên: không có optimistic update nào ở
+ * đây, thẻ chỉ dịch chuyển sau khi `invalidateQueries` nạp lại board.
  */
 export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   const notify = useNotification();
@@ -27,6 +55,8 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   // UI-only gate — quyền thật (AI_VIEW) luôn được backend kiểm tra lại; đây
   // chỉ để ẩn nút với ai chắc chắn không có quyền (cùng pattern ApplicantCardPage).
   const canRunAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
+  const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
+  const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const [dragState, setDragState] = useState<{
     applicationId: string;
     fromStageId: number;
@@ -40,12 +70,7 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   // không tính trực tiếp trong thân component — Date.now() là hàm impure,
   // gọi thẳng trong render vi phạm quy tắc render phải thuần khiết.
   const [aiPollingDeadline, setAiPollingDeadline] = useState<number | null>(null);
-  const [interviewModalState, setInterviewModalState] = useState<{
-    applicationId: string;
-    candidateName: string;
-    targetStageId: number;
-    targetStageName: string;
-  } | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingStageAction | null>(null);
 
   const boardQueryKey = ['kanban', 'board', jobId];
   const {
@@ -129,7 +154,7 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
     setDragOverStageId(null);
   }
 
-  // UC-20: mở Applicant Card chi tiết — điểm vào duy nhất của UC-29 (Từ chối ứng viên).
+  // UC-20: mở Applicant Card chi tiết (tạo Offer, từ chối, xem điểm AI...).
   function handleCardClick(applicationId: string) {
     navigate(ROUTES.APPLICATION_DETAIL.replace(':applicationId', applicationId));
   }
@@ -141,30 +166,89 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
       return;
     }
 
-    const targetColumn = board?.columns.find((c) => c.stageId === targetStageId);
-    if (targetColumn && targetColumn.stageType === 'INTERVIEW') {
-      const sourceColumn = board?.columns.find((c) => c.stageId === dragState.fromStageId);
-      const app = sourceColumn?.applications.find((a) => a.applicationId === dragState.applicationId);
-      const candidateName = app?.candidateName || 'Ứng viên';
+    const { applicationId, fromStageId } = dragState;
+    setDragState(null);
 
-      setInterviewModalState({
-        applicationId: dragState.applicationId,
+    const targetColumn = board?.columns.find((c) => c.stageId === targetStageId);
+    if (!targetColumn) {
+      return;
+    }
+
+    const sourceColumn = board?.columns.find((c) => c.stageId === fromStageId);
+    const candidateName =
+      sourceColumn?.applications.find((a) => a.applicationId === applicationId)?.candidateName ||
+      'Ứng viên';
+    const pending = (kind: PendingStageAction['kind']) =>
+      setPendingAction({
+        kind,
+        applicationId,
         candidateName,
         targetStageId,
         targetStageName: targetColumn.name,
       });
-      setDragState(null);
-      return;
-    }
 
-    setMovingApplicationId(dragState.applicationId);
-    moveMutation.mutate({ applicationId: dragState.applicationId, targetStageId });
-    setDragState(null);
+    // UC-23: 4 Stage type "quan trọng" không bao giờ chuyển bằng 1 cú thả trần.
+    // Ba cái đầu mở dialog và chỉ ghi nhận Stage khi hành động xong; cái cuối
+    // không có lối vào thủ công nào cả.
+    switch (targetColumn.stageType) {
+      case 'INTERVIEW':
+        pending('INTERVIEW');
+        return;
+
+      case 'OFFER':
+        // Gate UI (quyền thật luôn được backend kiểm tra lại): mở form Offer
+        // cho người không có quyền tạo chỉ để họ ăn 403 lúc bấm là vô ích.
+        if (!canCreateOffer) {
+          notify.error('Bạn không có quyền tạo Offer nên không thể chuyển hồ sơ sang Stage này.');
+          return;
+        }
+        pending('OFFER');
+        return;
+
+      case 'TERMINAL_REJECTED':
+        // BR-REJ-01/02: từ chối luôn phải có lý do chuẩn hóa và email gửi ứng
+        // viên. Thả trần trước đây bỏ qua cả hai.
+        if (!canReject) {
+          notify.error('Bạn không có quyền từ chối ứng viên nên không thể chuyển hồ sơ sang Stage này.');
+          return;
+        }
+        pending('REJECT');
+        return;
+
+      case 'TERMINAL_SUCCESS':
+        // UC-39: hồ sơ chỉ thành "Trúng tuyển" khi ứng viên ký Offer điện tử
+        // (OfferSigningService ghi nhận là transition SYSTEM). Kéo tay vào đây
+        // sẽ tạo ra một hồ sơ trúng tuyển chưa từng ký gì, mà BR-KANBAN-03 lại
+        // không cho kéo ra nữa.
+        notify.error(
+          `Không thể kéo hồ sơ sang "${targetColumn.name}". Ứng viên chỉ vào Stage này khi đã ký Offer điện tử — hãy tạo và gửi Offer từ Applicant Card.`,
+        );
+        return;
+
+      default:
+        setMovingApplicationId(applicationId);
+        moveMutation.mutate({ applicationId, targetStageId });
+    }
   }
 
-  function handleInterviewScheduled() {
-    setInterviewModalState(null);
+  /**
+   * Hành động trong dialog đã hoàn tất — backend cũng đã chuyển Stage trong
+   * cùng transaction, nên ở đây chỉ cần nạp lại board.
+   */
+  function handleActionCompleted() {
+    setPendingAction(null);
     queryClient.invalidateQueries({ queryKey: boardQueryKey });
+  }
+
+  function handleInterviewSkip() {
+    if (pendingAction) {
+      setMovingApplicationId(pendingAction.applicationId);
+      moveMutation.mutate({
+        applicationId: pendingAction.applicationId,
+        targetStageId: pendingAction.targetStageId,
+      });
+      setPendingAction(null);
+    }
   }
 
   if (isLoadingBoard) {
@@ -223,15 +307,42 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
         ))}
       </div>
 
-      {interviewModalState && (
+      {/* Hủy = `setPendingAction(null)`: chưa có request nào được gửi nên board
+          không cần hoàn tác gì, thẻ vẫn nằm ở cột cũ. */}
+      {pendingAction?.kind === 'INTERVIEW' && (
         <ScheduleInterviewModal
-          open={Boolean(interviewModalState)}
-          applicationId={interviewModalState.applicationId}
-          candidateName={interviewModalState.candidateName}
-          targetStageId={interviewModalState.targetStageId}
-          targetStageName={interviewModalState.targetStageName}
-          onClose={() => setInterviewModalState(null)}
-          onScheduled={handleInterviewScheduled}
+          open
+          applicationId={pendingAction.applicationId}
+          candidateName={pendingAction.candidateName}
+          targetStageId={pendingAction.targetStageId}
+          targetStageName={pendingAction.targetStageName}
+          onClose={() => setPendingAction(null)}
+          onSkip={handleInterviewSkip}
+          onScheduled={handleActionCompleted}
+        />
+      )}
+
+      {pendingAction?.kind === 'OFFER' && (
+        <CreateOfferModal
+          open
+          applicationId={pendingAction.applicationId}
+          candidateName={pendingAction.candidateName}
+          targetStageId={pendingAction.targetStageId}
+          targetStageName={pendingAction.targetStageName}
+          onClose={() => setPendingAction(null)}
+          onCreated={handleActionCompleted}
+          onStageMoved={handleActionCompleted}
+        />
+      )}
+
+      {pendingAction?.kind === 'REJECT' && (
+        <RejectApplicationModal
+          open
+          applicationId={pendingAction.applicationId}
+          candidateName={pendingAction.candidateName}
+          targetStageName={pendingAction.targetStageName}
+          onClose={() => setPendingAction(null)}
+          onRejected={handleActionCompleted}
         />
       )}
     </>
