@@ -123,3 +123,35 @@ export interface CalendarConnectionStatus {
   tokenExpiresAt: string | null;
 }
 
+
+/* ------------------------------------------------------------------ */
+/* UC-19 — cấu hình kênh chia sẻ tin tuyển dụng                        */
+/* ------------------------------------------------------------------ */
+
+/** Khớp `domain.PublishingChannelCode` phía backend. */
+export type PublishingChannelCode = 'LINKEDIN' | 'FACEBOOK' | 'X' | 'COPY_LINK';
+
+/**
+ * Một kênh chia sẻ trong bảng `publishing_channels`.
+ *
+ * Khác hẳn Calendar/Cloud Storage ở cùng nhóm Cài đặt Tích hợp: không có
+ * OAuth, không có token, không có trạng thái kết nối nào để hết hạn. Chia sẻ
+ * đi qua share intent link của nền tảng nên HireWise không giữ credential
+ * nào của LinkedIn/Facebook — đây thuần tuý là cấu hình.
+ */
+export interface PublishingChannel {
+  code: PublishingChannelCode;
+  name: string;
+  /** Read-only: URL share intent do nền tảng quy định. `null` với `COPY_LINK`. */
+  shareIntentUrlTemplate: string | null;
+  utmSource: string;
+  enabled: boolean;
+  displayOrder: number;
+}
+
+export const PUBLISHING_CHANNEL_DESCRIPTIONS: Record<PublishingChannelCode, string> = {
+  LINKEDIN: 'Mở hộp thoại chia sẻ của LinkedIn với link tin tuyển dụng.',
+  FACEBOOK: 'Mở hộp thoại chia sẻ của Facebook với link tin tuyển dụng.',
+  X: 'Mở hộp thoại soạn bài của X (Twitter) với link tin tuyển dụng.',
+  COPY_LINK: 'Sao chép link vào clipboard để dán vào bất kỳ đâu (email, Zalo, group...).',
+};

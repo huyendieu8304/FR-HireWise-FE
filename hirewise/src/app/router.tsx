@@ -15,6 +15,7 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { CalendarIntegrationPage } from '@/features/integrations/pages/CalendarIntegrationPage';
+import { PublishingChannelsPage } from '@/features/integrations/pages/PublishingChannelsPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
@@ -62,6 +63,11 @@ export const router = createBrowserRouter([
           {
             path: ROUTES.SETTINGS_CALENDAR,
             element: <CalendarIntegrationPage />,
+          },
+          /** UC-19: HR Admin bật/tắt kênh chia sẻ tin tuyển dụng. */
+          {
+            path: ROUTES.SETTINGS_PUBLISHING_CHANNELS,
+            element: <PublishingChannelsPage />,
           },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
           /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
