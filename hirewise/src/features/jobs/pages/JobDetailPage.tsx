@@ -29,6 +29,8 @@ import { KanbanBoardView } from '@/features/kanban/components/KanbanBoardView';
 import { useAuthStore } from '@/store/useAuthStore';
 import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
 import { JobLifecycleActions } from '../components/JobLifecycleActions';
+import { ShareJobModal } from '../components/ShareJobModal';
+import { SharePerformancePanel } from '../components/SharePerformancePanel';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -57,6 +59,7 @@ export function JobDetailPage() {
     (state) => state.user?.permissions.includes('JOB_SUBMIT') ?? false,
   );
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const tabParam = searchParams.get('tab');
   const activeTab: DetailTab = tabParam === 'kanban' ? 'kanban' : 'description';
@@ -145,7 +148,7 @@ export function JobDetailPage() {
                 )}
               </div>
             )}
-            <JobLifecycleActions job={job} />
+            <JobLifecycleActions job={job} onShare={() => setIsShareModalOpen(true)} />
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
             {job.departmentName && (
@@ -290,6 +293,12 @@ export function JobDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* UC-32: chi hien khi Job da tung co the chia se duoc - Draft/Pending
+              chua co link nao ton tai nen bang so lieu chac chan rong. */}
+          {(job.status === 'PUBLISHED' || job.status === 'PAUSED' || job.status === 'CLOSED') && (
+            <SharePerformancePanel jobId={job.id} />
+          )}
         </div>
       ) : (
         <KanbanBoardView jobId={job.id} />
@@ -298,6 +307,12 @@ export function JobDetailPage() {
       <SubmitForApprovalModal
         open={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
+        job={job}
+      />
+
+      <ShareJobModal
+        open={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
         job={job}
       />
     </div>

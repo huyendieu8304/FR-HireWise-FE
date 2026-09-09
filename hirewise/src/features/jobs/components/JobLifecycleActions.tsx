@@ -4,6 +4,7 @@ import {
   ArrowCounterClockwise,
   PauseCircle,
   Prohibit,
+  ShareNetwork,
   UploadSimple,
 } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
@@ -16,6 +17,8 @@ import { JobLifecycleReasonModal } from './JobLifecycleReasonModal';
 
 export interface JobLifecycleActionsProps {
   job: InternalJobDetail;
+  /** Mở modal UC-31. Chỉ hiện nút khi Job đang Published. */
+  onShare: () => void;
 }
 
 type ReasonModal = 'pause' | 'close' | null;
@@ -27,9 +30,12 @@ type ReasonModal = 'pause' | 'close' | null;
  * | Trạng thái  | Nút hiện ra                              |
  * |-------------|------------------------------------------|
  * | `APPROVED`  | Đăng tin                                 |
- * | `PUBLISHED` | Tạm dừng, Đóng vị trí                    |
+ * | `PUBLISHED` | Chia sẻ, Tạm dừng, Đóng vị trí           |
  * | `PAUSED`    | Mở lại, Đóng vị trí                      |
  * | `CLOSED`    | không có nút nào (BR-JOB-05: terminal)   |
+ *
+ * Nút Chia sẻ (UC-31) chỉ hiện khi Published vì BR-POST-01 chặn chia sẻ Job ở
+ * mọi trạng thái khác, và link đã chia sẻ của Job Paused/Closed cũng trả 404.
  *
  * Draft/Rejected/Pending Approval do `JobDetailPage` tự lo (Chỉnh sửa, Gửi
  * duyệt) nên component này trả về `null`.
@@ -38,7 +44,7 @@ type ReasonModal = 'pause' | 'close' | null;
  * Tạm dừng và Đóng vị trí có thêm ô lý do (tuỳ chọn) nên phải dùng modal
  * riêng — xem `JobLifecycleReasonModal`.
  */
-export function JobLifecycleActions({ job }: JobLifecycleActionsProps) {
+export function JobLifecycleActions({ job, onShare }: JobLifecycleActionsProps) {
   const notify = useNotification();
   const { confirm } = useDialog();
   const queryClient = useQueryClient();
@@ -108,13 +114,23 @@ export function JobLifecycleActions({ job }: JobLifecycleActionsProps) {
   const isClosable = job.status === 'PUBLISHED' || job.status === 'PAUSED';
 
   const showPublish = canPublish && isPublishable;
+  // BR-POST-01: chỉ Job đang Published mới chia sẻ ra kênh ngoài được, và
+  // backend gác endpoint bằng cùng permission JOB_PUBLISH.
+  const showShare = canPublish && job.status === 'PUBLISHED';
   const showClosePause = canClosePause && (isPausable || isResumable || isClosable);
-  if (!showPublish && !showClosePause) {
+  if (!showPublish && !showShare && !showClosePause) {
     return null;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {showShare && (
+        <Button size="sm" onClick={onShare}>
+          <ShareNetwork className="size-4" />
+          Chia sẻ
+        </Button>
+      )}
+
       {showPublish && (
         <Button size="sm" isLoading={lifecycleMutation.isPending} onClick={handlePublish}>
           <UploadSimple className="size-4" />
