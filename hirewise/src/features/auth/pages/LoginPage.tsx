@@ -1,8 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate, useLocation } from 'react-router-dom';
-import type { Location } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { EnvelopeSimple, LockKey } from '@phosphor-icons/react';
 import { TextInput } from '@/components/ui/TextInput/TextInput';
 import { Button } from '@/components/ui/Button/Button';
@@ -25,7 +24,6 @@ import { AuthBrandRail } from '../components/AuthBrandRail';
  */
 export function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation() as Location & { state?: { from?: Location } };
   const notify = useNotification();
   const setSession = useAuthStore((state) => state.setSession);
 
@@ -41,7 +39,12 @@ export function LoginPage() {
     onSuccess: (data) => {
       setSession(data);
       notify.success(`Chào mừng trở lại, ${data.user.name}!`);
-      navigate(location.state?.from?.pathname ?? ROUTES.DASHBOARD, { replace: true });
+      // Luôn về Dashboard, KHÔNG quay lại URL trước đó (`location.state.from`)
+      // - 1 tab có thể được nhiều người thay phiên đăng nhập bằng role khác
+      // nhau (test nhiều role, máy dùng chung...), quay lại đúng URL cũ sẽ
+      // làm role vừa đăng nhập "mắc kẹt" ở trang không dành cho họ. Xem
+      // ProtectedRoute.tsx.
+      navigate(ROUTES.DASHBOARD, { replace: true });
     },
     onError: (error) => {
       // 401 (InvalidCredentialsException — sai email/password) hiển thị
