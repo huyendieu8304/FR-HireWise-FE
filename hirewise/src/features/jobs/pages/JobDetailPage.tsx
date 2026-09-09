@@ -28,6 +28,7 @@ import { cn } from '@/utils/cn';
 import { KanbanBoardView } from '@/features/kanban/components/KanbanBoardView';
 import { useAuthStore } from '@/store/useAuthStore';
 import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
+import { JobLifecycleActions } from '../components/JobLifecycleActions';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -122,7 +123,9 @@ export function JobDetailPage() {
                 <Badge variant="primary">{EMPLOYMENT_TYPE_LABELS[job.employmentType]}</Badge>
               )}
             </div>
-            {/* BR-JOB-04: chỉ Draft/Rejected còn sửa được — Published chỉ Đóng/Tạm dừng (chưa làm). */}
+            {/* BR-JOB-04: chỉ Draft/Rejected còn sửa được. Từ Approved trở đi,
+                vòng đời do JobLifecycleActions lo (UC-45 Đăng tin, UC-44
+                Tạm dừng/Đóng/Mở lại). */}
             {(canEditJob || canSubmitJob) && (job.status === 'DRAFT' || job.status === 'REJECTED') && (
               <div className="flex items-center gap-2">
                 {canEditJob && (
@@ -142,6 +145,7 @@ export function JobDetailPage() {
                 )}
               </div>
             )}
+            <JobLifecycleActions job={job} />
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
             {job.departmentName && (
