@@ -21,6 +21,7 @@ import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplat
 import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
 import { InterviewCalendarPage } from '@/features/kanban/pages/InterviewCalendarPage';
 import { PublicOfferPage } from '@/features/offers/pages/PublicOfferPage';
+import { PublicBookingPage } from '@/features/booking/pages/PublicBookingPage';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -44,6 +45,8 @@ export const router = createBrowserRouter([
       { path: ROUTES.CAREERS_APPLY, element: <ApplyPage /> },
       /** UC-38/UC-39: ứng viên xác thực OTP rồi ký Offer điện tử. */
       { path: ROUTES.OFFER_PUBLIC, element: <PublicOfferPage /> },
+      /** UC-34/UC-35: ứng viên tự chọn giờ phỏng vấn (Calendly-style). */
+      { path: ROUTES.BOOKING_PUBLIC, element: <PublicBookingPage /> },
     ],
   },
   {
