@@ -14,6 +14,7 @@ import {
   SquaresFour,
   TreeStructure,
   UsersThree,
+  ShareNetwork,
 } from '@phosphor-icons/react';
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
@@ -101,6 +102,14 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     to: ROUTES.SETTINGS_CALENDAR,
     label: 'Tích hợp Calendar',
     icon: CalendarBlank,
+    requiredPermission: 'INTEGRATION_MANAGE',
+  },
+  // UC-19: bật/tắt kênh chia sẻ tin tuyển dụng — PublishingChannelService yêu cầu
+  // INTEGRATION_MANAGE, cùng quyền với 2 mục Tích hợp phía trên dù ở đây không có OAuth.
+  {
+    to: ROUTES.SETTINGS_PUBLISHING_CHANNELS,
+    label: 'Kênh chia sẻ tin tuyển dụng',
+    icon: ShareNetwork,
     requiredPermission: 'INTEGRATION_MANAGE',
   },
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu

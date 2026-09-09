@@ -232,3 +232,66 @@ export interface InternalJobDetail {
 
 
 
+
+/* ------------------------------------------------------------------ */
+/* UC-19 / UC-31 / UC-32 — chia sẻ tin tuyển dụng ra kênh ngoài        */
+/* ------------------------------------------------------------------ */
+
+/** Khớp `domain.PublishingChannelCode` phía backend (bảng `publishing_channels`). */
+export type PublishingChannelCode = 'LINKEDIN' | 'FACEBOOK' | 'X' | 'COPY_LINK';
+
+export const PUBLISHING_CHANNEL_LABELS: Record<PublishingChannelCode, string> = {
+  LINKEDIN: 'LinkedIn',
+  FACEBOOK: 'Facebook',
+  X: 'X (Twitter)',
+  COPY_LINK: 'Sao chép link',
+};
+
+/**
+ * Thẻ Open Graph mà LinkedIn/Facebook sẽ đọc để dựng preview.
+ *
+ * Lưu ý nghiệp vụ: cả hai nền tảng đều BỎ QUA mọi caption truyền vào share
+ * intent — bài đăng dựng hoàn toàn từ 3 giá trị này. Nên đây chính là toàn
+ * bộ nội dung bài đăng, không phải một phần của nó.
+ */
+export interface SharePreview {
+  title: string;
+  description: string;
+  imageUrl: string;
+  siteName: string;
+}
+
+/** Một kênh Recruiter có thể bấm chia sẻ (UC-31). */
+export interface ShareTarget {
+  code: PublishingChannelCode;
+  name: string;
+  /** Link được đem đi chia sẻ — trỏ vào trang Open Graph của backend. */
+  shareUrl: string;
+  /** URL popup của nền tảng; `null` với `COPY_LINK` (FE tự copy clipboard). */
+  intentUrl: string | null;
+  shareCount: number;
+  lastSharedAt: string | null;
+}
+
+export interface JobShareTargets {
+  preview: SharePreview;
+  channels: ShareTarget[];
+}
+
+/** Một dòng trong bảng thống kê UC-32. */
+export interface ShareStatsRow {
+  code: PublishingChannelCode;
+  name: string;
+  shareCount: number;
+  clickCount: number;
+  applicationCount: number;
+  lastSharedAt: string | null;
+  shareUrl: string;
+}
+
+export interface JobShareStats {
+  rows: ShareStatsRow[];
+  totalApplications: number;
+  /** Ứng viên vào thẳng Job Board, không qua link chia sẻ nào. */
+  directApplications: number;
+}

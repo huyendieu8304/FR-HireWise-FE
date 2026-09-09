@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   ArrowSquareOut,
   Buildings,
   CalendarBlank,
+  CalendarPlus,
   Clock,
   EnvelopeSimple,
   File as FileIcon,
@@ -25,8 +26,10 @@ import { useNotification } from '@/hooks/useNotification';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/utils/formatters';
 import { ROUTES } from '@/constants/routes';
 import { getApplicationDetail, downloadApplicationFile } from '../api/applicationsApi';
+import { getKanbanBoard } from '@/features/kanban/api/kanbanApi';
 import { AiMatchAnalysisSection } from '../components/AiMatchAnalysisSection';
 import { RejectApplicationModal } from '../components/RejectApplicationModal';
+import { ScheduleInterviewModal } from '@/features/kanban/components/ScheduleInterviewModal';
 import { ScorecardTab } from '@/features/scorecards/components/ScorecardTab';
 import { getLatestOffer } from '@/features/offers/api/offersApi';
 import { CreateOfferModal } from '@/features/offers/components/CreateOfferModal';
@@ -63,9 +66,11 @@ export function ApplicantCardPage() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
   const notify = useNotification();
+  const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isCreateOfferModalOpen, setIsCreateOfferModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<number | null>(null);
   // UC-27/28: chỉ có ý nghĩa chuyển tab khi có cả 2 tab (AI cần quyền AI_VIEW);
   // nếu không có quyền AI, tab Scorecard hiển thị trực tiếp, không cần switcher.
@@ -81,6 +86,30 @@ export function ApplicantCardPage() {
     enabled: !!applicationId,
   });
 
+  const { data: kanbanBoard } = useQuery({
+    queryKey: ['jobs', application?.jobId, 'kanban'],
+    queryFn: () => getKanbanBoard(application!.jobId),
+    enabled: !!application?.jobId,
+  });
+
+  const interviewStage = useMemo(() => {
+    if (!kanbanBoard?.columns) return null;
+    return (
+      kanbanBoard.columns.find((c) => c.stageType === 'INTERVIEW') ||
+      kanbanBoard.columns.find(
+        (c) =>
+          c.name.toLowerCase().includes('interview') ||
+          c.name.toLowerCase().includes('phỏng vấn')
+      ) ||
+      null
+    );
+  }, [kanbanBoard?.columns]);
+
+  const isInterviewStage =
+    application?.currentStageType === 'INTERVIEW' ||
+    application?.currentStageName?.toLowerCase() === 'interview' ||
+    application?.currentStageName?.toLowerCase() === 'phỏng vấn';
+
   // UI-only gate — quyền thật (APPLICATION_REJECT + ownership Layer 4) luôn
   // được backend kiểm tra lại; đây chỉ để ẩn nút với ai chắc chắn không có quyền.
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
@@ -88,6 +117,7 @@ export function ApplicantCardPage() {
   const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
   const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
   const canSendOffer = currentUser?.permissions.includes('OFFER_SEND') ?? false;
+  const canScheduleInterview = currentUser?.permissions.includes('INTERVIEW_SCHEDULE') ?? false;
 
   // UC-36/37: Offer mới nhất của hồ sơ (backend trả 204 -> null khi chưa có).
   // Chỉ hỏi khi người dùng có quyền, tránh 403 rác trên tab Network.
@@ -186,6 +216,24 @@ export function ApplicantCardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {canScheduleInterview && !application.currentStageTerminal && (
+              <Button
+                variant="outline"
+                disabled={isInterviewStage}
+                title={
+                  isInterviewStage
+                    ? 'Ứng viên hiện đã ở giai đoạn Phỏng vấn'
+                    : 'Lên lịch trực tiếp hoặc gửi liên kết tự chọn lịch cho ứng viên'
+                }
+                onClick={() => setIsScheduleModalOpen(true)}
+              >
+                <CalendarPlus
+                  className={`mr-1.5 size-5 ${isInterviewStage ? 'text-neutral-400' : 'text-primary-600'}`}
+                  weight="bold"
+                />
+                Lên lịch phỏng vấn
+              </Button>
+            )}
             {canCreateOfferNow && (
               <Button onClick={() => setIsCreateOfferModalOpen(true)}>
                 <ReadCvLogo className="mr-1.5 size-5" weight="bold" />
@@ -403,6 +451,23 @@ export function ApplicantCardPage() {
         applicationId={application.applicationId}
         candidateName={application.candidateName}
       />
+
+      {canScheduleInterview && isScheduleModalOpen && (
+        <ScheduleInterviewModal
+          open={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          applicationId={application.applicationId}
+          candidateName={application.candidateName}
+          targetStageId={interviewStage?.stageId ?? application.currentStageId}
+          targetStageName={interviewStage?.name ?? 'Phỏng vấn'}
+          onScheduled={() => {
+            setIsScheduleModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['applications', 'detail', applicationId] });
+            queryClient.invalidateQueries({ queryKey: ['jobs', application.jobId, 'kanban'] });
+            queryClient.invalidateQueries({ queryKey: ['applications'] });
+          }}
+        />
+      )}
     </div>
   );
 }
