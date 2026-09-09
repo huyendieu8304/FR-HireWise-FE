@@ -1,6 +1,16 @@
-import { Briefcase, Clock, UsersThree, WarningOctagon } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Briefcase, Clock, UsersThree, WarningOctagon } from '@phosphor-icons/react';
+import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
+import { Skeleton } from '@/components/ui';
+import { formatNumber } from '@/utils/formatters/number';
+import {
+  getPipelineVelocityReport,
+  getSourceRoiReport,
+} from '@/features/reports/api/reportsApi';
+import { SOURCE_COLOR_VARS } from '@/features/reports/types';
 import { KpiTile } from '../components/KpiTile';
 import {
   PipelineVelocityChart,
@@ -9,23 +19,8 @@ import {
 import { SourceRoiDonut, type SourceDatum } from '../components/SourceRoiDonut';
 import { SlaAlertList, type SlaAlertDatum } from '../components/SlaAlertList';
 
-// ⚠️ Dữ liệu tĩnh minh họa — trang "home mockup" sau đăng nhập. Sẽ thay bằng
-// dữ liệu thật (TanStack Query + API báo cáo) khi triển khai feature Reports
-// (UC-42/43) và có backend thật. Giữ nguyên shape để hoán đổi dễ dàng.
-const VELOCITY_DATA: VelocityDatum[] = [
-  { stageLabel: 'New', days: 1.2 },
-  { stageLabel: 'Qualification', days: 2.8 },
-  { stageLabel: 'Phỏng vấn chuyên môn', days: 8.1, isBottleneck: true },
-  { stageLabel: 'Offer', days: 3.4 },
-];
-
-const SOURCE_DATA: SourceDatum[] = [
-  { label: 'Website', percent: 42, colorVar: 'var(--color-primary-600)' },
-  { label: 'LinkedIn', percent: 25, colorVar: 'var(--color-secondary-600)' },
-  { label: 'Facebook', percent: 18, colorVar: 'var(--color-warning-500)' },
-  { label: 'Referral', percent: 15, colorVar: 'var(--color-neutral-300)' },
-];
-
+// ⚠️ Danh sách vi phạm SLA vẫn là dữ liệu tĩnh — thuộc module M19 (UC-41),
+// chưa có endpoint. Hai biểu đồ bên dưới đã chạy bằng dữ liệu thật (UC-42/43).
 const SLA_ALERTS: SlaAlertDatum[] = [
   {
     id: 'sla-1',
@@ -43,14 +38,47 @@ const SLA_ALERTS: SlaAlertDatum[] = [
   },
 ];
 
+/** Số nguồn tối đa vẽ trên donut thu gọn của Dashboard — phần còn lại gộp vào "Khác". */
+const TOP_SOURCES = 4;
+
 /**
- * Trang Home sau khi đăng nhập thành công — tổng quan pipeline tuyển dụng.
- * Toàn bộ số liệu là dữ liệu mẫu tĩnh (xem ghi chú ở trên); bố cục theo đúng
- * mockup đã duyệt (figma-mockups/UC-42-43 Dashboard).
+ * Trang Home sau khi đăng nhập — tổng quan pipeline tuyển dụng.
+ *
+ * Hai widget "Pipeline Velocity" và "Source ROI" đọc chính hai endpoint của
+ * UC-42/UC-43, không truyền bộ lọc nào nên backend áp mặc định 90 ngày gần
+ * nhất trong phạm vi Access Scope của người dùng (BR-RPT-02).
+ *
+ * Ở đây vẫn giữ 2 biểu đồ CSS gọn nhẹ chứ không dùng Recharts như trang Báo
+ * cáo: đây là widget liếc qua, ai muốn đào sâu thì bấm "Xem báo cáo" sang trang
+ * đầy đủ có bộ lọc, tooltip và export.
  */
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const notify = useNotification();
+  const canViewReports = user?.permissions.includes('REPORT_VIEW') ?? false;
+
+  const { data: sourceRoi, isLoading: isSourceLoading } = useQuery({
+    queryKey: ['reports', 'source-roi', 'dashboard'],
+    queryFn: () => getSourceRoiReport({}),
+    enabled: canViewReports,
+  });
+
+  const { data: velocity, isLoading: isVelocityLoading } = useQuery({
+    queryKey: ['reports', 'pipeline-velocity', 'dashboard'],
+    queryFn: () => getPipelineVelocityReport({}),
+    enabled: canViewReports,
+  });
+
+  const velocityData: VelocityDatum[] = (velocity?.stages ?? [])
+    .filter((stage) => stage.avgDays !== null)
+    .map((stage) => ({
+      stageLabel: stage.stageName,
+      days: stage.avgDays as number,
+      isBottleneck: stage.bottleneck,
+    }));
+
+  const sourceData = toDonutData(sourceRoi?.rows ?? []);
+  const inProgress = (sourceRoi?.totalApplications ?? 0) - (sourceRoi?.totalHires ?? 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,24 +87,22 @@ export function DashboardPage() {
           Chào buổi sáng, {user?.name ?? 'bạn'} 👋
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Tổng quan pipeline tuyển dụng của bạn hôm nay.
+          Tổng quan pipeline tuyển dụng của bạn trong 90 ngày gần nhất.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile
           label="Ứng viên đang xử lý"
-          value="128"
+          value={isSourceLoading ? '…' : formatNumber(Math.max(inProgress, 0))}
           icon={<UsersThree className="size-4" />}
           iconVariant="primary"
-          trend={{ direction: 'up', label: '+12% so với tuần trước' }}
         />
         <KpiTile
-          label="Tin đang tuyển"
-          value="9"
+          label="Ứng viên đã tiếp nhận"
+          value={isSourceLoading ? '…' : formatNumber(sourceRoi?.totalApplications ?? 0)}
           icon={<Briefcase className="size-4" />}
           iconVariant="success"
-          trend={{ direction: 'up', label: '3 chờ duyệt' }}
         />
         <KpiTile
           label="Vi phạm SLA"
@@ -84,34 +110,61 @@ export function DashboardPage() {
           icon={<WarningOctagon className="size-4" />}
           iconVariant="danger"
           alert
-          trend={{ direction: 'down', label: '+2 so với hôm qua' }}
         />
         <KpiTile
           label="Time-to-Hire TB"
           value={
-            <>
-              18 <span className="text-sm font-medium text-neutral-500">ngày</span>
-            </>
+            isVelocityLoading ? (
+              '…'
+            ) : velocity?.avgTimeToHireDays == null ? (
+              '—'
+            ) : (
+              <>
+                {formatNumber(velocity.avgTimeToHireDays, { decimalPlaces: 1 })}{' '}
+                <span className="text-sm font-medium text-neutral-500">ngày</span>
+              </>
+            )
           }
           icon={<Clock className="size-4" />}
           iconVariant="secondary"
-          trend={{ direction: 'up', label: 'Nhanh hơn 3 ngày so với Q2' }}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div className="shadow-elevation-1 bg-neutral-0 flex flex-col gap-1 rounded-lg border border-neutral-200 p-5">
-          <h2 className="text-sm font-semibold text-neutral-900">Pipeline Velocity</h2>
-          <p className="mb-3 text-xs text-neutral-500">
-            Thời gian trung bình ứng viên nằm ở mỗi Stage
-          </p>
-          <PipelineVelocityChart data={VELOCITY_DATA} />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-900">Pipeline Velocity</h2>
+              <p className="mb-3 text-xs text-neutral-500">
+                Thời gian trung bình ứng viên nằm ở mỗi Stage
+              </p>
+            </div>
+            {canViewReports && <ReportLink tab="pipeline-velocity" />}
+          </div>
+          {isVelocityLoading ? (
+            <Skeleton className="h-40 rounded-md" />
+          ) : velocityData.length === 0 ? (
+            <WidgetEmpty canViewReports={canViewReports} />
+          ) : (
+            <PipelineVelocityChart data={velocityData} />
+          )}
         </div>
 
         <div className="shadow-elevation-1 bg-neutral-0 flex flex-col gap-1 rounded-lg border border-neutral-200 p-5">
-          <h2 className="text-sm font-semibold text-neutral-900">Source ROI</h2>
-          <p className="mb-3 text-xs text-neutral-500">Tỷ trọng ứng viên theo nguồn</p>
-          <SourceRoiDonut data={SOURCE_DATA} total={128} />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-900">Source ROI</h2>
+              <p className="mb-3 text-xs text-neutral-500">Tỷ trọng ứng viên theo nguồn</p>
+            </div>
+            {canViewReports && <ReportLink tab="source-roi" />}
+          </div>
+          {isSourceLoading ? (
+            <Skeleton className="h-40 rounded-md" />
+          ) : sourceData.length === 0 ? (
+            <WidgetEmpty canViewReports={canViewReports} />
+          ) : (
+            <SourceRoiDonut data={sourceData} total={sourceRoi?.totalApplications ?? 0} />
+          )}
         </div>
       </div>
 
@@ -126,5 +179,57 @@ export function DashboardPage() {
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Rút gọn danh sách nguồn xuống vừa một donut nhỏ.
+ *
+ * Chỉ giữ `TOP_SOURCES` nguồn lớn nhất và gộp phần còn lại thành "Khác" —
+ * donut trên Dashboard rộng chưa tới 200px, vẽ mười lát cắt mỏng thì không đọc
+ * được lát nào. Bảng đầy đủ nằm ở trang Báo cáo.
+ */
+function toDonutData(
+  rows: { label: string; applicationShare: number | null; applicationCount: number }[],
+): SourceDatum[] {
+  const withShare = rows.filter((row) => row.applicationCount > 0 && row.applicationShare !== null);
+  const top = withShare.slice(0, TOP_SOURCES);
+  const rest = withShare.slice(TOP_SOURCES);
+
+  const data: SourceDatum[] = top.map((row, index) => ({
+    label: row.label,
+    percent: row.applicationShare as number,
+    colorVar: SOURCE_COLOR_VARS[index],
+  }));
+
+  if (rest.length > 0) {
+    data.push({
+      label: 'Khác',
+      percent: rest.reduce((sum, row) => sum + (row.applicationShare as number), 0),
+      colorVar: 'var(--color-neutral-300)',
+    });
+  }
+  return data;
+}
+
+function ReportLink({ tab }: { tab: 'source-roi' | 'pipeline-velocity' }) {
+  return (
+    <Link
+      to={tab === 'source-roi' ? ROUTES.REPORTS : `${ROUTES.REPORTS}?tab=${tab}`}
+      className="text-primary-600 hover:text-primary-700 inline-flex shrink-0 items-center gap-1 text-xs font-medium"
+    >
+      Xem báo cáo
+      <ArrowRight className="size-3" />
+    </Link>
+  );
+}
+
+function WidgetEmpty({ canViewReports }: { canViewReports: boolean }) {
+  return (
+    <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
+      {canViewReports
+        ? 'Chưa đủ dữ liệu trong 90 ngày gần nhất.'
+        : 'Bạn không có quyền xem báo cáo tuyển dụng.'}
+    </p>
   );
 }
