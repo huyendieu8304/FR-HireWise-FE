@@ -35,6 +35,10 @@ interface KanbanColumnProps {
  * BR-KANBAN-03: 1 Application đã ở Stage terminal (Hired/Refused) không
  * kéo đi tiếp được nữa (chưa có thao tác "Khôi phục") — card trong cột
  * terminal luôn hiển thị `draggable=false`.
+ * <p>
+ * UC-39: cột TERMINAL_SUCCESS còn không nhận thả — ứng viên chỉ vào đó khi đã
+ * ký Offer điện tử. Cột không sáng lên khi rê thẻ qua và con trỏ đổi thành
+ * "cấm"; `KanbanBoardView.handleDrop` vẫn nhận sự kiện để nói rõ lý do.
  */
 export function KanbanColumn({
   column,
@@ -57,6 +61,10 @@ export function KanbanColumn({
   // nút này là cách quét hàng loạt thay vì bấm "Phân tích lại" từng thẻ.
   const showScanButton = canRunAi && column.stageType === 'INTAKE' && column.applications.length > 0;
 
+  // UC-39: không có lối vào thủ công nào cho Stage "Trúng tuyển".
+  const rejectsDrop = column.stageType === 'TERMINAL_SUCCESS';
+  const isBeingDraggedOver = isDragOver && !rejectsDrop;
+
   return (
     <div
       onDragOver={(e) => {
@@ -70,7 +78,8 @@ export function KanbanColumn({
       }}
       className={cn(
         'flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 transition-colors',
-        isDragOver && 'border-primary-400 bg-primary-50',
+        isBeingDraggedOver && 'border-primary-400 bg-primary-50',
+        rejectsDrop && draggedApplicationId !== null && 'cursor-not-allowed',
       )}
     >
       <div className="flex items-center justify-between gap-2 px-0.5">
