@@ -6,6 +6,7 @@ import {
   CaretDown,
   ChartBar,
   CheckCircle,
+  ClipboardText,
   CloudArrowUp,
   EnvelopeSimple,
   PuzzlePiece,
@@ -119,6 +120,14 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Pipeline tuyển dụng',
     icon: TreeStructure,
     requiredPermission: 'PIPELINE_MANAGE',
+  },
+  // UC-27: cấu hình Scorecard Template — ScorecardTemplateService yêu cầu
+  // SCORECARD_TEMPLATE_MANAGE (Hiring Manager + HR Admin đều có quyền này).
+  {
+    to: ROUTES.SCORECARD_TEMPLATES,
+    label: 'Scorecard Template',
+    icon: ClipboardText,
+    requiredPermission: 'SCORECARD_TEMPLATE_MANAGE',
   },
 ];
 

@@ -30,6 +30,7 @@ import { getKanbanBoard } from '@/features/kanban/api/kanbanApi';
 import { AiMatchAnalysisSection } from '../components/AiMatchAnalysisSection';
 import { RejectApplicationModal } from '../components/RejectApplicationModal';
 import { ScheduleInterviewModal } from '@/features/kanban/components/ScheduleInterviewModal';
+import { ScorecardTab } from '@/features/scorecards/components/ScorecardTab';
 import { getLatestOffer } from '@/features/offers/api/offersApi';
 import { CreateOfferModal } from '@/features/offers/components/CreateOfferModal';
 import { OfferReviewPanel } from '@/features/offers/components/OfferReviewPanel';
@@ -71,6 +72,9 @@ export function ApplicantCardPage() {
   const [isCreateOfferModalOpen, setIsCreateOfferModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<number | null>(null);
+  // UC-27/28: chỉ có ý nghĩa chuyển tab khi có cả 2 tab (AI cần quyền AI_VIEW);
+  // nếu không có quyền AI, tab Scorecard hiển thị trực tiếp, không cần switcher.
+  const [activeTab, setActiveTab] = useState<'AI' | 'SCORECARD'>('AI');
 
   const {
     data: application,
@@ -271,9 +275,44 @@ export function ApplicantCardPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
-          {/* UC-21: AI Match Analysis */}
-          {canViewAi && (
-            <AiMatchAnalysisSection applicationId={application.applicationId} canRun={canViewAi} />
+          {/* UC-21 (AI Match Analysis) + UC-27/28 (Scorecard) — 2 tab riêng biệt
+              khi user có cả 2 quyền; nếu không có quyền AI thì bỏ qua switcher,
+              hiện thẳng Scorecard vì đó là tab khả dụng duy nhất. */}
+          {canViewAi ? (
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex w-fit gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('AI')}
+                  className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    activeTab === 'AI'
+                      ? 'bg-white text-primary-700 shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                >
+                  Phân tích AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('SCORECARD')}
+                  className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    activeTab === 'SCORECARD'
+                      ? 'bg-white text-primary-700 shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                >
+                  Scorecard
+                </button>
+              </div>
+
+              {activeTab === 'AI' ? (
+                <AiMatchAnalysisSection applicationId={application.applicationId} canRun={canViewAi} />
+              ) : (
+                <ScorecardTab applicationId={application.applicationId} candidateName={application.candidateName} />
+              )}
+            </div>
+          ) : (
+            <ScorecardTab applicationId={application.applicationId} candidateName={application.candidateName} />
           )}
 
           {/* Files */}
