@@ -69,7 +69,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: CalendarBlank,
     requiredPermission: 'APPLICATION_VIEW',
   },
-  { to: '/reports', label: 'Báo cáo', icon: ChartBar },
+  // UC-42/UC-43: 2 tab bao cao cua module M20. REPORT_VIEW duoc cap cho
+  // Recruiter, Hiring Manager va HR Admin (V44) - Interviewer khong thay muc nay.
+  {
+    to: ROUTES.REPORTS,
+    label: 'Báo cáo',
+    icon: ChartBar,
+    requiredPermission: 'REPORT_VIEW',
+  },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
 

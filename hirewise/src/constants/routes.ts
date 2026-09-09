@@ -12,6 +12,8 @@ export const ROUTES = {
   JOB_DETAIL: '/jobs/:jobId',
   /** UC-12 AF-01: "Lưu nháp" lại 1 Job đang Draft/Rejected. */
   JOB_EDIT: '/jobs/:jobId/edit',
+  /** UC-42/UC-43: Dashboard Source ROI va Pipeline Velocity (module M20). */
+  REPORTS: '/reports',
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
