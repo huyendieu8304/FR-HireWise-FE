@@ -3,7 +3,12 @@ import { Clock, Gauge, Trophy, WarningCircle } from '@phosphor-icons/react';
 import { EmptyState, Skeleton } from '@/components/ui';
 import { KpiTile } from '@/features/dashboard/components/KpiTile';
 import { formatNumber } from '@/utils/formatters/number';
-import { getPipelineVelocityReport, toReportQueryParams } from '../api/reportsApi';
+import {
+  downloadPipelineVelocityXlsx,
+  getPipelineVelocityReport,
+  toReportQueryParams,
+} from '../api/reportsApi';
+import { ExportXlsxButton } from './ExportXlsxButton';
 import { StageVelocityBarChart } from './StageVelocityBarChart';
 import { BottleneckBanner, StageVelocityTable } from './StageVelocityTable';
 import { ME_37, type ReportFilterValue } from '../types';
@@ -81,13 +86,23 @@ export function PipelineVelocityTab({ filter }: PipelineVelocityTabProps) {
       <BottleneckBanner stage={bottleneck} />
 
       <div className="shadow-elevation-1 flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">
-          Thời gian trung bình ở mỗi Stage
-        </h2>
-        <p className="mb-4 text-xs text-neutral-500">
-          Trục ngang là Stage theo đúng thứ tự pipeline, trục dọc là số ngày trung bình một hồ sơ
-          nằm lại ở đó.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">
+              Thời gian trung bình ở mỗi Stage
+            </h2>
+            <p className="mb-4 text-xs text-neutral-500">
+              Trục ngang là Stage theo đúng thứ tự pipeline, trục dọc là số ngày trung bình một
+              hồ sơ nằm lại ở đó.
+            </p>
+          </div>
+          <ExportXlsxButton
+            download={() => downloadPipelineVelocityXlsx(params)}
+            fileNamePrefix="pipeline-velocity"
+            toDate={data.toDate}
+            disabled={isEmpty}
+          />
+        </div>
 
         {isEmpty ? (
           <EmptyState

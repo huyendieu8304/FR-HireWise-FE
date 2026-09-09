@@ -9,7 +9,12 @@ import {
 import { EmptyState, Skeleton } from '@/components/ui';
 import { KpiTile } from '@/features/dashboard/components/KpiTile';
 import { formatNumber } from '@/utils/formatters/number';
-import { getSourceRoiReport, toReportQueryParams } from '../api/reportsApi';
+import {
+  downloadSourceRoiXlsx,
+  getSourceRoiReport,
+  toReportQueryParams,
+} from '../api/reportsApi';
+import { ExportXlsxButton } from './ExportXlsxButton';
 import { SourceRoiPieChart } from './SourceRoiPieChart';
 import { SourceRoiTable } from './SourceRoiTable';
 import { ME_37, MIN_SAMPLE_NOTE, type ReportFilterValue } from '../types';
@@ -94,11 +99,23 @@ export function SourceRoiTab({ filter }: SourceRoiTabProps) {
       </div>
 
       <div className="shadow-elevation-1 flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Tỷ trọng ứng viên theo nguồn</h2>
-        <p className="mb-4 text-xs text-neutral-500">
-          Hiệu quả ở đây là hiệu suất phễu (hồ sơ → trúng tuyển), không phải lợi nhuận trên chi
-          phí — hệ thống chưa lưu ngân sách chi cho từng kênh.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">
+              Tỷ trọng ứng viên theo nguồn
+            </h2>
+            <p className="mb-4 text-xs text-neutral-500">
+              Hiệu quả ở đây là hiệu suất phễu (hồ sơ → trúng tuyển), không phải lợi nhuận trên
+              chi phí — hệ thống chưa lưu ngân sách chi cho từng kênh.
+            </p>
+          </div>
+          <ExportXlsxButton
+            download={() => downloadSourceRoiXlsx(params)}
+            fileNamePrefix="source-roi"
+            toDate={data.toDate}
+            disabled={isEmpty}
+          />
+        </div>
 
         {isEmpty ? (
           <EmptyState
