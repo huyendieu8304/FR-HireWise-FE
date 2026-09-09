@@ -167,17 +167,6 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
     queryClient.invalidateQueries({ queryKey: boardQueryKey });
   }
 
-  function handleInterviewSkip() {
-    if (interviewModalState) {
-      setMovingApplicationId(interviewModalState.applicationId);
-      moveMutation.mutate({
-        applicationId: interviewModalState.applicationId,
-        targetStageId: interviewModalState.targetStageId,
-      });
-      setInterviewModalState(null);
-    }
-  }
-
   if (isLoadingBoard) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -242,7 +231,6 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
           targetStageId={interviewModalState.targetStageId}
           targetStageName={interviewModalState.targetStageName}
           onClose={() => setInterviewModalState(null)}
-          onSkip={handleInterviewSkip}
           onScheduled={handleInterviewScheduled}
         />
       )}

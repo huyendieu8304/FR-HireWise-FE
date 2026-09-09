@@ -14,16 +14,25 @@ import {
   X,
   MagnifyingGlass,
   ArrowSquareOut,
+  Link as LinkIcon,
+  Sparkle,
+  Plus,
+  Trash,
+  WarningCircle,
 } from '@phosphor-icons/react';
 import { Modal } from '@/components/ui/Modal/Modal';
 import { Button } from '@/components/ui/Button/Button';
+import { Select } from '@/components/ui/Select/Select';
 import { useNotification } from '@/hooks/useNotification';
 import {
   getAvailableInterviewers,
   getInterviewCalendar,
+  getInterviewerBusySlots,
   scheduleInterview,
 } from '../api/interviewApi';
+import { sendBookingLink } from '@/features/applications/api/bookingApi';
 import type { InterviewMode, ScheduleInterviewRequest } from '../types';
+import type { BookingRequestResponse, SlotItem } from '@/features/applications/types';
 
 export interface ScheduleInterviewModalProps {
   open: boolean;
@@ -32,7 +41,6 @@ export interface ScheduleInterviewModalProps {
   targetStageId: number;
   targetStageName: string;
   onClose: () => void;
-  onSkip: () => void;
   onScheduled: () => void;
 }
 
@@ -43,6 +51,21 @@ const ALL_HOURS = [
   '07:00', '08:00', '09:00', '10:00', '11:00',
   '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
 ];
+const PRESET_BOOKING_TIMES = [
+  '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00',
+];
+
+function parseTimeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function formatMinutesToTime(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
 export function ScheduleInterviewModal({
   open,
@@ -51,7 +74,6 @@ export function ScheduleInterviewModal({
   targetStageId,
   targetStageName,
   onClose,
-  onSkip,
   onScheduled,
 }: ScheduleInterviewModalProps) {
   const notify = useNotification();
@@ -64,7 +86,6 @@ export function ScheduleInterviewModal({
   const [mode, setMode] = useState<InterviewMode>('ONLINE');
   const [durationMinutes, setDurationMinutes] = useState<number>(45);
   const [locationOrLink, setLocationOrLink] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
 
   // Selected date & time
@@ -127,6 +148,213 @@ export function ScheduleInterviewModal({
     return interviewers.filter((u) => selectedInterviewerIds.includes(u.id));
   }, [interviewers, selectedInterviewerIds]);
 
+  // Method selection: DIRECT vs BOOKING_LINK
+  const [scheduleMethod, setScheduleMethod] = useState<'DIRECT' | 'BOOKING_LINK'>('DIRECT');
+
+  // Booking link states
+  const tomorrow = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const defaultBookingEnd = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const [bookingInterviewerId, setBookingInterviewerId] = useState<number | ''>('');
+  const [bookingMode, setBookingMode] = useState<InterviewMode>('ONLINE');
+  const [bookingLocationOrLink, setBookingLocationOrLink] = useState('');
+  const [bookingDateRangeStart, setBookingDateRangeStart] = useState(tomorrow);
+  const [bookingDateRangeEnd, setBookingDateRangeEnd] = useState(defaultBookingEnd);
+  const [bookingTimeRangeStart, setBookingTimeRangeStart] = useState('08:30');
+  const [bookingTimeRangeEnd, setBookingTimeRangeEnd] = useState('17:00');
+  const [bookingSlots, setBookingSlots] = useState<SlotItem[]>([]);
+  const [bookingSlotDateInput, setBookingSlotDateInput] = useState(tomorrow);
+  const [bookingSlotTimeInput, setBookingSlotTimeInput] = useState('09:00');
+  const [bookingResult, setBookingResult] = useState<BookingRequestResponse | null>(null);
+  const [bookingCopied, setBookingCopied] = useState(false);
+
+  const interviewerOptions = useMemo(
+    () =>
+      interviewers.map((i) => ({
+        value: String(i.id),
+        label: `${i.fullName} (${i.email})`,
+      })),
+    [interviewers]
+  );
+
+  // Query interviewer busy slots directly from database
+  const { data: busySlots = [] } = useQuery({
+    queryKey: ['interviewer-busy-slots', bookingInterviewerId, bookingDateRangeStart, bookingDateRangeEnd],
+    queryFn: () =>
+      getInterviewerBusySlots(
+        Number(bookingInterviewerId),
+        bookingDateRangeStart,
+        bookingDateRangeEnd,
+      ),
+    enabled:
+      open &&
+      scheduleMethod === 'BOOKING_LINK' &&
+      Boolean(bookingInterviewerId) &&
+      Boolean(bookingDateRangeStart) &&
+      Boolean(bookingDateRangeEnd),
+  });
+
+  const busySlotKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of busySlots) {
+      const normalizedTime = b.time.substring(0, 5); // "HH:mm"
+      set.add(`${b.date} ${normalizedTime}`);
+    }
+    return set;
+  }, [busySlots]);
+
+  const conflictingSlots = useMemo(() => {
+    return bookingSlots.filter((s) => busySlotKeys.has(`${s.slotDate} ${s.slotTime}`));
+  }, [bookingSlots, busySlotKeys]);
+
+  const handleAutoGenerateBookingSlots = async () => {
+    if (!bookingDateRangeStart || !bookingDateRangeEnd) return;
+    const start = new Date(bookingDateRangeStart);
+    const end = new Date(bookingDateRangeEnd);
+    if (end < start) {
+      notify.error('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
+      return;
+    }
+
+    const startMin = parseTimeToMinutes(bookingTimeRangeStart || '08:30');
+    const endMin = parseTimeToMinutes(bookingTimeRangeEnd || '17:00');
+    if (endMin <= startMin) {
+      notify.error('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return;
+    }
+
+    // Check interviewer busy slots
+    const busySet = new Set(busySlotKeys);
+    if (bookingInterviewerId && busySet.size === 0) {
+      try {
+        const slots = await getInterviewerBusySlots(
+          Number(bookingInterviewerId),
+          bookingDateRangeStart,
+          bookingDateRangeEnd,
+        );
+        for (const b of slots) {
+          busySet.add(`${b.date} ${b.time.substring(0, 5)}`);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    const generated: SlotItem[] = [];
+    let conflictsCount = 0;
+    const curr = new Date(start);
+    const stepMinutes = 60; // 1-hour interval between slots
+
+    while (curr <= end) {
+      const day = curr.getDay();
+      if (day !== 0 && day !== 6) {
+        const dateStr = curr.toISOString().split('T')[0];
+        let curMin = startMin;
+        while (curMin + 30 <= endMin) {
+          // Skip lunch break 12:00 - 13:30
+          if (curMin >= 720 && curMin < 810) {
+            curMin = 810;
+            if (curMin + 30 > endMin) break;
+          }
+          const timeStr = formatMinutesToTime(curMin);
+          if (busySet.has(`${dateStr} ${timeStr}`)) {
+            conflictsCount++;
+          }
+          generated.push({ slotDate: dateStr, slotTime: timeStr, durationMinutes: 45 });
+          curMin += stepMinutes;
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    if (generated.length === 0) {
+      notify.error('Không tìm thấy ngày làm việc hợp lệ trong khoảng thời gian đã chọn.');
+      return;
+    }
+
+    setBookingSlots(generated);
+    if (conflictsCount > 0) {
+      notify.success(
+        `Đã tự động tạo ${generated.length} khung giờ (trong đó có ${conflictsCount} khung giờ trùng lịch sẽ tự động bôi xám khi ứng viên mở link).`
+      );
+    } else {
+      notify.success(`Đã tự động tạo ${generated.length} khung giờ có sẵn cho các ngày làm việc.`);
+    }
+  };
+
+  const handleAddBookingSlot = () => {
+    if (!bookingSlotDateInput || !bookingSlotTimeInput) return;
+    const exists = bookingSlots.some(
+      (s) => s.slotDate === bookingSlotDateInput && s.slotTime === bookingSlotTimeInput
+    );
+    if (exists) {
+      notify.error('Khung giờ này đã được thêm.');
+      return;
+    }
+    if (busySlotKeys.has(`${bookingSlotDateInput} ${bookingSlotTimeInput}`)) {
+      notify.info('Khung giờ này trùng lịch phỏng vấn của Interviewer và sẽ được bôi xám trên trang của ứng viên.');
+    }
+    setBookingSlots((prev) => [
+      ...prev,
+      { slotDate: bookingSlotDateInput, slotTime: bookingSlotTimeInput, durationMinutes: 45 },
+    ]);
+  };
+
+  const handleRemoveBookingSlot = (index: number) => {
+    setBookingSlots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveConflictingSlots = () => {
+    setBookingSlots((prev) =>
+      prev.filter((s) => !busySlotKeys.has(`${s.slotDate} ${s.slotTime}`))
+    );
+    notify.info('Đã xoá tất cả các khung giờ bị trùng lịch.');
+  };
+
+  const handleCopyBookingLink = () => {
+    if (bookingResult?.bookingLink) {
+      navigator.clipboard.writeText(bookingResult.bookingLink);
+      setBookingCopied(true);
+      setTimeout(() => setBookingCopied(false), 2000);
+      notify.success('Đã sao chép link tự chọn lịch vào clipboard.');
+    }
+  };
+
+  const isBookingFormValid =
+    bookingInterviewerId !== '' &&
+    Boolean(bookingDateRangeStart) &&
+    Boolean(bookingDateRangeEnd) &&
+    bookingSlots.length > 0;
+
+  const bookingMutation = useMutation({
+    mutationFn: () =>
+      sendBookingLink(applicationId, {
+        interviewerId: Number(bookingInterviewerId),
+        dateRangeStart: bookingDateRangeStart,
+        dateRangeEnd: bookingDateRangeEnd,
+        targetStageId,
+        mode: bookingMode,
+        locationOrLink: bookingLocationOrLink.trim() || undefined,
+        slots: bookingSlots,
+      }),
+    onSuccess: (data) => {
+      setBookingResult(data);
+      notify.success(`Đã tạo liên kết và chuyển ứng viên sang "${targetStageName}".`);
+    },
+    onError: (error) => {
+      notify.error(error);
+    },
+  });
+
 
   // Load calendar schedule for current week
   const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -185,7 +413,6 @@ export function ScheduleInterviewModal({
       interviewTime: selectedTime,
       mode,
       locationOrLink: locationOrLink.trim() || undefined,
-      notes: notes.trim() || undefined,
     };
 
     scheduleMutation.mutate(payload);
@@ -235,55 +462,410 @@ export function ScheduleInterviewModal({
     return days;
   }, [weekStart, todayStr]);
 
+  const handleCloseModal = () => {
+    if (bookingResult) {
+      setBookingResult(null);
+      onScheduled();
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleCloseModal}
       title="Lên lịch phỏng vấn"
       description={`Xếp lịch cho ${candidateName} và chuyển sang "${targetStageName}".`}
       size="xl"
       footer={
-        <div className="flex w-full items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onSkip}
-            disabled={scheduleMutation.isPending}
-            title="Chỉ chuyển cột trên Kanban mà không tạo lịch phỏng vấn"
-          >
-            Bỏ qua (Chỉ chuyển Stage)
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="text-right text-xs text-neutral-500">
-              Đã chọn: <span className="font-semibold text-primary-700">{selectedDate} lúc {selectedTime}</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={scheduleMutation.isPending}
-            >
-              Huỷ
-            </Button>
+        bookingResult ? (
+          <div className="flex w-full items-center justify-end">
             <Button
               type="button"
               variant="primary"
-              isLoading={scheduleMutation.isPending}
-              onClick={() => handleSubmit()}
+              onClick={handleCloseModal}
             >
-              <CalendarCheck className="mr-1.5 size-4" />
-              Gửi thư mời
+              Hoàn tất & Xem Kanban
             </Button>
           </div>
-        </div>
+        ) : scheduleMethod === 'DIRECT' ? (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-xs text-neutral-500">
+              Đã chọn: <span className="font-semibold text-primary-700">{selectedDate} lúc {selectedTime}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseModal}
+                disabled={scheduleMutation.isPending}
+              >
+                Huỷ
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                isLoading={scheduleMutation.isPending}
+                onClick={() => handleSubmit()}
+              >
+                <CalendarCheck className="mr-1.5 size-4" />
+                Gửi thư mời & Chuyển Stage
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-xs">
+              <span className="text-neutral-500">Đã tạo: </span>
+              <span className="font-semibold text-primary-700">{bookingSlots.length} khung giờ</span>
+              {conflictingSlots.length > 0 && (
+                <span className="ml-2 font-medium text-amber-700">
+                  ({conflictingSlots.length} slot sẽ bôi xám)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseModal}
+                disabled={bookingMutation.isPending}
+              >
+                Huỷ
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                isLoading={bookingMutation.isPending}
+                disabled={!isBookingFormValid || bookingMutation.isPending}
+                onClick={() => bookingMutation.mutate()}
+              >
+                <LinkIcon className="mr-1.5 size-4" />
+                Gửi liên kết & Chuyển Stage
+              </Button>
+            </div>
+          </div>
+        )
       }
     >
       <div className="flex flex-col gap-4 py-1">
-        {formError && (
-          <div className="rounded-md border border-danger-200 bg-danger-50 p-3 text-xs text-danger-700">
-            {formError}
+        {/* Method Switcher: DIRECT SCHEDULE vs SELF-SERVICE BOOKING LINK */}
+        <div className="flex rounded-lg border border-neutral-200 bg-neutral-100 p-1">
+          <button
+            type="button"
+            onClick={() => setScheduleMethod('DIRECT')}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
+              scheduleMethod === 'DIRECT'
+                ? 'bg-white text-primary-700 shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <CalendarCheck className="size-4" />
+            <span>Lên lịch trực tiếp (Chỉ định ngày giờ)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setScheduleMethod('BOOKING_LINK')}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
+              scheduleMethod === 'BOOKING_LINK'
+                ? 'bg-white text-primary-700 shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <LinkIcon className="size-4" />
+            <span>Gửi liên kết tự chọn lịch (Self-service Booking)</span>
+          </button>
+        </div>
+
+        {bookingResult ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-success-50 text-success-600">
+              <Check className="size-8" weight="bold" />
+            </div>
+            <div className="max-w-md">
+              <h3 className="text-base font-semibold text-neutral-900">
+                Đã gửi liên kết tự chọn lịch thành công!
+              </h3>
+              <p className="mt-1 text-xs text-neutral-600">
+                Email mời tự chọn lịch (mẫu <b>EM-06</b>) đã được gửi đến ứng viên <b>{candidateName}</b>.
+                Ứng viên đã được chuyển sang giai đoạn <b>{targetStageName}</b>.
+              </p>
+            </div>
+
+            {/* Copy link box */}
+            <div className="flex w-full max-w-lg items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+              <LinkIcon className="size-4 shrink-0 text-neutral-400" />
+              <input
+                type="text"
+                readOnly
+                value={bookingResult.bookingLink}
+                className="w-full bg-transparent text-xs font-mono text-neutral-700 focus:outline-none"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant={bookingCopied ? 'primary' : 'outline'}
+                onClick={handleCopyBookingLink}
+                className="shrink-0"
+              >
+                {bookingCopied ? (
+                  <>
+                    <Check className="mr-1 size-3.5" />
+                    Đã chép
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1 size-3.5" />
+                    Sao chép
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        )}
+        ) : scheduleMethod === 'BOOKING_LINK' ? (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-md bg-primary-50 p-3 text-xs text-primary-800">
+              💡 Ứng viên <b>{candidateName}</b> sẽ nhận được email kèm đường dẫn bảo mật để tự chọn 1 khung giờ phỏng vấn phù hợp từ danh sách bạn mở bên dưới. Ứng viên sẽ được chuyển ngay sang giai đoạn <b>{targetStageName}</b>.
+            </div>
+
+            {/* Select Interviewer */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-neutral-700">
+                Người phỏng vấn (Interviewer) <span className="text-danger-500">*</span>
+              </label>
+              <Select
+                placeholder="Chọn người phỏng vấn..."
+                options={interviewerOptions}
+                value={bookingInterviewerId ? String(bookingInterviewerId) : ''}
+                onChange={(e) =>
+                  setBookingInterviewerId(e.target.value ? Number(e.target.value) : '')
+                }
+              />
+            </div>
+
+            {/* Mode & Meeting Link */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  Hình thức phỏng vấn
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('ONLINE')}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      bookingMode === 'ONLINE'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <VideoCamera className="size-4" />
+                    Trực tuyến (Google Meet)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('ONSITE')}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      bookingMode === 'ONSITE'
+                        ? 'bg-primary-600 text-white shadow-sm'
+                        : 'border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Buildings className="size-4" />
+                    Trực tiếp (Onsite)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  {bookingMode === 'ONLINE' ? 'Link phòng họp (tùy chọn)' : 'Địa điểm / Phòng họp'}
+                </label>
+                <input
+                  type="text"
+                  value={bookingLocationOrLink}
+                  onChange={(e) => setBookingLocationOrLink(e.target.value)}
+                  placeholder={
+                    bookingMode === 'ONLINE'
+                      ? 'Để trống để hệ thống tự tạo Google Meet'
+                      : 'Ví dụ: Phòng họp 301, Tầng 3...'
+                  }
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Date & Time Range */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  Khoảng ngày từ <span className="text-danger-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={bookingDateRangeStart}
+                  min={tomorrow}
+                  onChange={(e) => setBookingDateRangeStart(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  Đến ngày <span className="text-danger-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={bookingDateRangeEnd}
+                  min={bookingDateRangeStart || tomorrow}
+                  onChange={(e) => setBookingDateRangeEnd(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  Thời gian từ
+                </label>
+                <input
+                  type="time"
+                  value={bookingTimeRangeStart}
+                  onChange={(e) => setBookingTimeRangeStart(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  Đến thời gian
+                </label>
+                <input
+                  type="time"
+                  value={bookingTimeRangeEnd}
+                  onChange={(e) => setBookingTimeRangeEnd(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Slots Builder */}
+            <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-neutral-800">
+                  Các khung giờ mở cho ứng viên chọn ({bookingSlots.length} slots)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateBookingSlots}
+                  className="inline-flex items-center gap-1 rounded-md border border-primary-300 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-100"
+                >
+                  <Sparkle className="size-3.5" />
+                  <span>Tự động tạo các ngày trong khoảng</span>
+                </button>
+              </div>
+
+              {/* Add manual slot bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <input
+                  type="date"
+                  value={bookingSlotDateInput}
+                  min={bookingDateRangeStart || tomorrow}
+                  max={bookingDateRangeEnd}
+                  onChange={(e) => setBookingSlotDateInput(e.target.value)}
+                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                />
+                <select
+                  value={bookingSlotTimeInput}
+                  onChange={(e) => setBookingSlotTimeInput(e.target.value)}
+                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                >
+                  {PRESET_BOOKING_TIMES.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddBookingSlot}
+                >
+                  <Plus className="mr-1 size-3.5" />
+                  Thêm slot
+                </Button>
+              </div>
+
+              {/* Conflict information banner */}
+              {conflictingSlots.length > 0 && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+                  <div className="flex items-center gap-2">
+                    <WarningCircle className="size-4 shrink-0 text-amber-600" weight="fill" />
+                    <span>
+                      Có <b>{conflictingSlots.length} khung giờ</b> trùng lịch phỏng vấn của Interviewer. Các khung giờ này vẫn sẽ được gửi nhưng sẽ tự động <b>bôi xám (không cho chọn)</b> khi ứng viên mở link.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveConflictingSlots}
+                    className="shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
+                  >
+                    Xoá các slot trùng
+                  </button>
+                </div>
+              )}
+
+              {/* Slots List */}
+              {bookingSlots.length === 0 ? (
+                <div className="py-6 text-center text-xs text-neutral-400">
+                  Chưa có khung giờ nào được tạo. Nhấn "Tự động tạo" hoặc thêm thủ công bên trên.
+                </div>
+              ) : (
+                <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-1">
+                  {bookingSlots.map((s, idx) => {
+                    const isConflicted = busySlotKeys.has(`${s.slotDate} ${s.slotTime}`);
+                    return (
+                      <div
+                        key={`${s.slotDate}-${s.slotTime}-${idx}`}
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs shadow-xs transition-colors ${
+                          isConflicted
+                            ? 'border-amber-300 bg-amber-50/70 text-amber-900'
+                            : 'border-neutral-200 bg-white text-neutral-700'
+                        }`}
+                      >
+                        <Clock className={`size-3.5 ${isConflicted ? 'text-amber-500' : 'text-neutral-400'}`} />
+                        <span className="font-medium">{s.slotDate}</span>
+                        <span className={`font-semibold ${isConflicted ? 'text-amber-700' : 'text-primary-700'}`}>
+                          {s.slotTime}
+                        </span>
+                        {isConflicted && (
+                          <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-800">
+                            Bôi xám
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBookingSlot(idx)}
+                          className="ml-1 rounded p-0.5 text-neutral-400 hover:text-danger-600"
+                          title="Xoá slot"
+                        >
+                          <Trash className="size-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {formError && (
+              <div className="rounded-md border border-danger-200 bg-danger-50 p-3 text-xs text-danger-700">
+                {formError}
+              </div>
+            )}
 
         {/* Top bar: Mode, Duration, Google Meet link preview */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
@@ -782,25 +1364,8 @@ export function ScheduleInterviewModal({
             </>
           )}
         </div>
-
-        {/* Notes */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-neutral-700">
-            Ghi chú nội bộ (tuỳ chọn)
-          </label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Nội dung lưu ý cho hội đồng phỏng vấn..."
-            className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
-          />
-        </div>
-
-        <div className="rounded-md bg-neutral-100 p-2 text-[11px] text-neutral-600">
-          💡 Thư mời phỏng vấn (mẫu <span className="font-semibold">EM-05</span>) sẽ tự động gửi tới ứng viên.
-          Thông báo lịch họp (mẫu <span className="font-semibold">EM-08</span>) sẽ gửi tới tất cả Interviewer được chọn.
-        </div>
+          </>
+        )}
       </div>
     </Modal>
   );
