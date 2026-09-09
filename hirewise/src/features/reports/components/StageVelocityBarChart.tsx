@@ -43,17 +43,13 @@ export function StageVelocityBarChart({ stages }: StageVelocityBarChartProps) {
             tickLine={false}
             axisLine={{ stroke: 'var(--color-neutral-200)' }}
           />
+          {/* Khong gan label don vi len truc: no de len tick tren cung. Don vi
+              da nam o tieu de bieu do va o tooltip. */}
           <YAxis
             tick={{ fontSize: 12, fill: 'var(--color-neutral-500)' }}
             tickLine={false}
             axisLine={false}
             width={44}
-            label={{
-              value: 'ngày',
-              position: 'insideTopLeft',
-              fontSize: 11,
-              fill: 'var(--color-neutral-400)',
-            }}
           />
           <Tooltip cursor={{ fill: 'var(--color-neutral-100)' }} content={<StageTooltip />} />
           {slaLine > 0 && (
@@ -63,9 +59,11 @@ export function StageVelocityBarChart({ stages }: StageVelocityBarChartProps) {
               strokeDasharray="4 4"
               ifOverflow="extendDomain"
             >
+              {/* "insideTopRight" chu khong phai "right": dat ngoai vung ve
+                  thi nhan bi margin cat mat gan het. */}
               <Label
                 value={`Ngưỡng SLA ${formatNumber(slaLine, { decimalPlaces: 1 })} ngày`}
-                position="right"
+                position="insideTopRight"
                 fontSize={11}
                 fill="var(--color-danger-500)"
               />

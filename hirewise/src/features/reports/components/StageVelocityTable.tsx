@@ -16,7 +16,7 @@ function ratio(value: number | null): string {
   return value === null ? '—' : `${formatNumber(value, { decimalPlaces: 1 })}%`;
 }
 
-const COLUMNS = 'grid-cols-[1.6fr_repeat(8,minmax(0,1fr))]';
+const COLUMNS = 'grid-cols-[2.1fr_repeat(8,minmax(0,1fr))]';
 
 /**
  * UC-43: bảng chi tiết dưới biểu đồ cột.

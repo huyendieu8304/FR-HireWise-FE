@@ -17,7 +17,7 @@ function days(value: number | null): string {
   return value === null ? '—' : `${formatNumber(value, { decimalPlaces: 1 })} ngày`;
 }
 
-const COLUMNS = 'grid-cols-[1.6fr_repeat(7,minmax(0,1fr))]';
+const COLUMNS = 'grid-cols-[2.1fr_repeat(7,minmax(0,1fr))]';
 
 /**
  * UC-42: bảng chi tiết dưới biểu đồ tròn.

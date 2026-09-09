@@ -89,7 +89,7 @@ export function PipelineVelocityTab({ filter }: PipelineVelocityTabProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-neutral-900">
-              Thời gian trung bình ở mỗi Stage
+              Thời gian trung bình ở mỗi Stage (ngày)
             </h2>
             <p className="mb-4 text-xs text-neutral-500">
               Trục ngang là Stage theo đúng thứ tự pipeline, trục dọc là số ngày trung bình một
