@@ -240,17 +240,6 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
     queryClient.invalidateQueries({ queryKey: boardQueryKey });
   }
 
-  function handleInterviewSkip() {
-    if (pendingAction) {
-      setMovingApplicationId(pendingAction.applicationId);
-      moveMutation.mutate({
-        applicationId: pendingAction.applicationId,
-        targetStageId: pendingAction.targetStageId,
-      });
-      setPendingAction(null);
-    }
-  }
-
   if (isLoadingBoard) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -317,7 +306,6 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
           targetStageId={pendingAction.targetStageId}
           targetStageName={pendingAction.targetStageName}
           onClose={() => setPendingAction(null)}
-          onSkip={handleInterviewSkip}
           onScheduled={handleActionCompleted}
         />
       )}

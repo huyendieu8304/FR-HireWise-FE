@@ -21,6 +21,7 @@ import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
 import { getInitials } from '@/utils/formatters';
+import { queryClient } from '@/lib/queryClient';
 
 interface NavItem {
   to: string;
@@ -174,6 +175,9 @@ export function AppShell() {
     // client, quay về trang đăng nhập. Khi có backend thật, gọi thêm
     // http.post('/auth/logout') trước clearSession() để revoke phía server.
     clearSession();
+    // Xóa cache server-state cùng lúc - tránh người đăng nhập kế tiếp trên
+    // cùng tab (role khác) thấy thoáng qua dữ liệu của role vừa đăng xuất.
+    queryClient.clear();
     notify.info('Đã đăng xuất.');
     navigate(ROUTES.LOGIN, { replace: true });
   }
