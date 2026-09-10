@@ -22,6 +22,11 @@ import { router } from '@/app/router';
 export function AppProviders() {
   useEffect(() => {
     return onUnauthorized(() => {
+      // Xóa sạch cache server-state của phiên vừa hết hạn - nếu không, người
+      // đăng nhập TIẾP THEO trên cùng tab (role khác) có thể thấy thoáng qua
+      // dữ liệu (job list, user list...) của role trước đó trước khi query
+      // mới kịp chạy xong, vì query key không tự phân biệt theo user.
+      queryClient.clear();
       showWarningToast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
       router.navigate(ROUTES.LOGIN);
     });
