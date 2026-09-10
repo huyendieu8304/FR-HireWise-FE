@@ -18,6 +18,7 @@ import { CalendarIntegrationPage } from '@/features/integrations/pages/CalendarI
 import { PublishingChannelsPage } from '@/features/integrations/pages/PublishingChannelsPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
 import { ScorecardTemplatesPage } from '@/features/scorecards/pages/ScorecardTemplatesPage';
+import { ReportsPage } from '@/features/reports/pages/ReportsPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
@@ -59,6 +60,8 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
           { path: ROUTES.USERS, element: <UserManagementPage /> },
+          /** UC-42/UC-43: menu [Bao cao] - 2 tab Source ROI / Pipeline Velocity. */
+          { path: ROUTES.REPORTS, element: <ReportsPage /> },
           {
             path: ROUTES.SETTINGS_INTEGRATIONS,
             element: <CloudStorageIntegrationPage />,
