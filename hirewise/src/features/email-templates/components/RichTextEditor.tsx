@@ -119,6 +119,19 @@ export const RichTextEditor = React.memo(
         onChange(cleanHtml);
       };
 
+      // Dán (Ctrl+V) luôn thành text thường, bỏ hết style/thẻ HTML mà clipboard
+      // mang theo — mặc định trình duyệt giữ NGUYÊN toàn bộ markup nguồn khi dán
+      // vào contentEditable, kể cả hàng trăm attribute rác khi copy từ 1 trang
+      // Google Search/Google Docs... (data-sfc-cp, jscontroller, data-ved...),
+      // khiến nội dung lưu lại không thể đọc được. User vẫn bôi đen rồi bấm nút
+      // Bold/Italic/List trên toolbar để định dạng lại sau khi dán.
+      const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text/plain');
+        document.execCommand('insertText', false, text);
+        handleVisualInput();
+      };
+
       // Xử lý chuyển đổi giữa Visual & Code View
       const toggleMode = () => {
         if (mode === 'visual') {
@@ -408,6 +421,7 @@ export const RichTextEditor = React.memo(
                 className="prose prose-sm max-w-none p-4 text-neutral-900 focus:outline-none overflow-y-auto leading-relaxed"
                 style={{ minHeight }}
                 onInput={handleVisualInput}
+                onPaste={handlePaste}
                 onFocus={() => {
                   onFocus?.();
                   saveSelection();

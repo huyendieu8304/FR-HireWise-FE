@@ -27,6 +27,7 @@ import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
 import { KanbanBoardView } from '@/features/kanban/components/KanbanBoardView';
 import { useAuthStore } from '@/store/useAuthStore';
+import { JobDescriptionBlocks } from '../components/JobDescriptionBlocks';
 import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
 import { JobLifecycleActions } from '../components/JobLifecycleActions';
 import { ShareJobModal } from '../components/ShareJobModal';
@@ -247,29 +248,11 @@ export function JobDetailPage() {
       {/* Tab Content */}
       {activeTab === 'description' ? (
         <div className="flex flex-col gap-6">
-          {/* JD Block 1: Mô tả công việc */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">1. Mô tả công việc</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.description || <span className="italic text-neutral-400">Không có mô tả</span>}
-            </div>
-          </div>
-
-          {/* JD Block 2: Yêu cầu ứng viên */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">2. Yêu cầu ứng viên</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.requirements || <span className="italic text-neutral-400">Không có yêu cầu cụ thể</span>}
-            </div>
-          </div>
-
-          {/* JD Block 3: Quyền lợi & Đãi ngộ */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">3. Quyền lợi & Đãi ngộ</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.benefits || <span className="italic text-neutral-400">Không có thông tin quyền lợi</span>}
-            </div>
-          </div>
+          <JobDescriptionBlocks
+            description={job.description}
+            requirements={job.requirements}
+            benefits={job.benefits}
+          />
 
           {/* Metadata Panel */}
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-5 text-xs text-neutral-600">

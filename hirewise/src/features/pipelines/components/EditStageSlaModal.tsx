@@ -17,11 +17,11 @@ export interface EditStageSlaModalProps {
 }
 
 /**
- * US-MGR-04 (UC-40, SLA Monitoring): Hiring Manager (hoặc HR Admin) cấu hình
- * ngưỡng SLA của 1 Stage — trường DUY NHẤT của Stage mà Hiring Manager được
- * sửa (`SLA_CONFIGURE`, hẹp hơn `PIPELINE_MANAGE`), nên tách hẳn khỏi
- * `CreatePipelineStageModal` thay vì dùng chung 1 form "sửa Stage" đầy đủ
- * (chưa tồn tại — xem `PipelineController` phía backend).
+ * US-MGR-04 (UC-40, SLA Monitoring): HR Admin cấu hình nhanh ngưỡng SLA của
+ * 1 Stage, ngay tại cột SLA của bảng — tách riêng khỏi `PipelineStageFormModal`
+ * (form sửa Stage đầy đủ: tên/mã/loại/is-terminal/SLA) để không phải mở cả
+ * form chỉ để đổi 1 con số. Cả 2 đều yêu cầu `PIPELINE_MANAGE` và đều bị khoá
+ * khi Template đã ACTIVE.
  */
 export function EditStageSlaModal({ stage, pipelineTemplateId, onClose }: EditStageSlaModalProps) {
   const notify = useNotification();

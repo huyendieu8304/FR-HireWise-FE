@@ -16,6 +16,7 @@ import { listDepartments } from '@/features/users/api/usersApi';
 import { ROUTES } from '@/constants/routes';
 import {
   createInternalJob,
+  getAvailableHiringManagers,
   getInternalJobDetail,
   updateInternalJob,
 } from '../api/internalJobsApi';
@@ -38,6 +39,7 @@ const EMPTY_FORM_VALUES: JobPositionFormValues = {
   description: '',
   requirements: '',
   benefits: '',
+  hiringManagerId: '',
 };
 
 /**
@@ -62,6 +64,11 @@ export function JobFormPage() {
   const { data: departments } = useQuery({
     queryKey: ['departments', 'list'],
     queryFn: () => listDepartments(),
+  });
+
+  const { data: hiringManagers } = useQuery({
+    queryKey: ['jobs', 'hiring-managers'],
+    queryFn: () => getAvailableHiringManagers(),
   });
 
   const { data: existingJob, isLoading: isLoadingJob } = useQuery({
@@ -97,6 +104,7 @@ export function JobFormPage() {
       description: existingJob.description ?? '',
       requirements: existingJob.requirements ?? '',
       benefits: existingJob.benefits ?? '',
+      hiringManagerId: existingJob.hiringManagerId ? String(existingJob.hiringManagerId) : '',
     });
   }, [existingJob, reset]);
 
@@ -114,6 +122,7 @@ export function JobFormPage() {
       description: values.description || null,
       requirements: values.requirements || null,
       benefits: values.benefits || null,
+      hiringManagerId: values.hiringManagerId ? Number(values.hiringManagerId) : null,
     };
   }
 
@@ -136,6 +145,11 @@ export function JobFormPage() {
   const departmentOptions = (departments ?? []).map((dept) => ({
     value: String(dept.id),
     label: dept.name,
+  }));
+
+  const hiringManagerOptions = (hiringManagers ?? []).map((manager) => ({
+    value: String(manager.id),
+    label: manager.departmentName ? `${manager.fullName} (${manager.departmentName})` : manager.fullName,
   }));
 
   const backTo = isEditMode && jobId ? ROUTES.JOB_DETAIL.replace(':jobId', jobId) : ROUTES.JOBS;
@@ -198,6 +212,14 @@ export function JobFormPage() {
               {...register('employmentType')}
             />
           </div>
+          <Select
+            label="Hiring Manager"
+            placeholder="Chưa chọn — có thể chọn sau"
+            helperText="Job này đang được mở ra cho Hiring Manager nào — có thể để trống và chọn sau."
+            options={hiringManagerOptions}
+            error={errors.hiringManagerId?.message}
+            {...register('hiringManagerId')}
+          />
         </div>
 
         <div className="flex flex-col gap-4 rounded-lg border border-neutral-200 bg-white p-5">

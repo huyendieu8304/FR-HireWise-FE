@@ -10,15 +10,21 @@ import { Switch } from '@/components/ui/Switch/Switch';
 import { Button } from '@/components/ui/Button/Button';
 import { useNotification } from '@/hooks/useNotification';
 import { AppError } from '@/types/api';
-import { createPipelineStage } from '../api/pipelinesApi';
+import { createPipelineStage, updatePipelineStage } from '../api/pipelinesApi';
 import { createPipelineStageSchema, type CreatePipelineStageFormValues } from '../schema';
-import { ALL_STAGE_TYPES, STAGE_TYPE_LABELS } from '../types';
+import { ALL_STAGE_TYPES, STAGE_TYPE_LABELS, type PipelineStage } from '../types';
 
-export interface CreatePipelineStageModalProps {
+export interface PipelineStageFormModalProps {
   open: boolean;
   onClose: () => void;
-  /** Template đang chọn ở trang cha — Stage mới luôn được thêm vào đây. */
+  /** Template đang chọn ở trang cha — Stage (mới hoặc đang sửa) luôn thuộc đây. */
   pipelineTemplateId: number;
+  /**
+   * `null`/`undefined` = chế độ Thêm mới (Stage luôn được thêm vào cuối,
+   * BR-PIPE-04). Có giá trị = chế độ Sửa, form pre-fill từ Stage này, gọi
+   * `updatePipelineStage` thay vì `createPipelineStage`.
+   */
+  stage?: PipelineStage | null;
 }
 
 const STAGE_TYPE_OPTIONS = ALL_STAGE_TYPES.map((type) => ({
@@ -27,18 +33,23 @@ const STAGE_TYPE_OPTIONS = ALL_STAGE_TYPES.map((type) => ({
 }));
 
 /**
- * UC-04 main flow bước 2-5: thêm 1 Stage mới vào Pipeline Template đang
- * chọn. `position` không có trên form — backend luôn tự thêm vào cuối
- * (BR-PIPE-04); "Is Terminal" vẫn để HR Admin tự tick (Screen Description),
- * dù backend sẽ tự ép `true` nếu Loại Stage là 1 trong 2 loại Terminal-*.
+ * UC-04 main flow bước 2-5 (Thêm Stage) + sửa lại 1 Stage đã có (chỉ khi
+ * Template cha còn DRAFT — nút sửa tự ẩn khi ACTIVE, xem
+ * `PipelineManagementPage`). Dùng chung 1 form cho cả 2 chế độ vì cùng 1
+ * bộ field/validation (khớp `CreatePipelineStageRequestDto` /
+ * `UpdateStageRequestDto` phía backend, cùng shape) — chỉ khác API gọi và
+ * giá trị mặc định. `position` không có trên form — backend luôn tự thêm
+ * vào cuối khi tạo mới (BR-PIPE-04); sửa lại không đổi vị trí (UC-05 riêng).
  */
-export function CreatePipelineStageModal({
+export function PipelineStageFormModal({
   open,
   onClose,
   pipelineTemplateId,
-}: CreatePipelineStageModalProps) {
+  stage,
+}: PipelineStageFormModalProps) {
   const notify = useNotification();
   const queryClient = useQueryClient();
+  const isEditMode = stage != null;
 
   const {
     register,
@@ -54,10 +65,25 @@ export function CreatePipelineStageModal({
     defaultValues: { terminal: false, slaHours: null },
   });
 
+  // Mở modal ở chế độ Sửa (hoặc đổi sang Stage khác) -> nạp lại giá trị hiện có.
+  useEffect(() => {
+    if (open && stage) {
+      reset({
+        name: stage.name,
+        code: stage.code,
+        stageType: stage.stageType,
+        terminal: stage.terminal,
+        slaHours: stage.slaHours,
+      });
+    } else if (open && !stage) {
+      reset({ terminal: false, slaHours: null });
+    }
+  }, [open, stage, reset]);
+
   // UC-40: SLA không áp dụng cho Stage Terminal (backend tự ép `terminal=true`
-  // nếu stageType là 1 trong 2 loại Terminal-*, xem PipelineService#createStage) -
-  // tính TRÙNG logic đó ở đây để ẩn field trước khi submit, thay vì để user nhập
-  // xong rồi mới ăn lỗi 400.
+  // nếu stageType là 1 trong 2 loại Terminal-*, xem PipelineService#createStage/
+  // updateStage) - tính TRÙNG logic đó ở đây để ẩn field trước khi submit, thay
+  // vì để user nhập xong rồi mới ăn lỗi 400.
   const stageType = watch('stageType');
   const isTerminalChecked = watch('terminal');
   const isTerminal =
@@ -69,14 +95,18 @@ export function CreatePipelineStageModal({
     }
   }, [isTerminal, setValue]);
 
-  const createMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: (values: CreatePipelineStageFormValues) =>
-      createPipelineStage(pipelineTemplateId, values),
-    onSuccess: (stage) => {
+      isEditMode
+        ? updatePipelineStage(pipelineTemplateId, stage!.id, values)
+        : createPipelineStage(pipelineTemplateId, values),
+    onSuccess: (savedStage) => {
       queryClient.invalidateQueries({
         queryKey: ['pipeline-stages', pipelineTemplateId],
       });
-      notify.success(`Đã thêm Stage "${stage.name}".`);
+      notify.success(
+        isEditMode ? `Đã lưu thay đổi Stage "${savedStage.name}".` : `Đã thêm Stage "${savedStage.name}".`,
+      );
       reset({ terminal: false, slaHours: null });
       onClose();
     },
@@ -98,8 +128,12 @@ export function CreatePipelineStageModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Thêm Stage mới"
-      description="Stage sẽ được thêm vào cuối danh sách hiện tại của Template này."
+      title={isEditMode ? 'Sửa Stage' : 'Thêm Stage mới'}
+      description={
+        isEditMode
+          ? 'Chỉ sửa được khi Template chưa kích hoạt.'
+          : 'Stage sẽ được thêm vào cuối danh sách hiện tại của Template này.'
+      }
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>
@@ -107,19 +141,19 @@ export function CreatePipelineStageModal({
           </Button>
           <Button
             type="submit"
-            form="create-pipeline-stage-form"
-            isLoading={createMutation.isPending}
+            form="pipeline-stage-form"
+            isLoading={saveMutation.isPending}
           >
-            Thêm Stage
+            {isEditMode ? 'Lưu thay đổi' : 'Thêm Stage'}
           </Button>
         </>
       }
     >
       <form
-        id="create-pipeline-stage-form"
+        id="pipeline-stage-form"
         className="flex flex-col gap-4"
         noValidate
-        onSubmit={handleSubmit((values) => createMutation.mutate(values))}
+        onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       >
         <TextInput
           label="Tên Stage"

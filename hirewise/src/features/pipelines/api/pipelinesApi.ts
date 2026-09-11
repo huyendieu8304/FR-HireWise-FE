@@ -44,6 +44,23 @@ export function createPipelineStage(
 }
 
 /**
+ * Sửa lại toàn bộ cấu trúc 1 Stage đã có (tên/mã/loại/is-terminal/SLA) —
+ * khác `updateStageSla` (chỉ sửa đúng 1 trường SLA). Chỉ gọi được khi
+ * Template cha còn DRAFT (backend tự chặn 409 `PIPELINE_TEMPLATE_NOT_EDITABLE`
+ * một khi đã ACTIVE, giống mọi thao tác Stage khác).
+ */
+export function updatePipelineStage(
+  templateId: number,
+  stageId: number,
+  payload: CreatePipelineStagePayload,
+): Promise<PipelineStage> {
+  return http.patch<PipelineStage>(
+    `/pipeline-templates/${templateId}/stages/${stageId}`,
+    payload,
+  );
+}
+
+/**
  * UC-05 main flow: sắp xếp lại toàn bộ Stage của 1 Template trong 1 lần
  * gọi. `stageIds` PHẢI là đúng và đủ toàn bộ id Stage hiện có của Template
  * (không thiếu, không thừa, không lặp), theo đúng thứ tự mới mong muốn —
@@ -59,10 +76,10 @@ export function reorderPipelineStages(
 }
 
 /**
- * US-MGR-04 (UC-40, SLA Monitoring): cấu hình (hoặc xóa) ngưỡng SLA của 1
- * Stage đã có sẵn — endpoint RIÊNG, không đi qua form sửa Stage đầy đủ (chưa
- * tồn tại), vì đây là trường DUY NHẤT Hiring Manager được sửa (`SLA_CONFIGURE`,
- * hẹp hơn `PIPELINE_MANAGE` mà chỉ HR Admin có).
+ * US-MGR-04 (UC-40, SLA Monitoring): cấu hình (hoặc xóa) riêng ngưỡng SLA
+ * của 1 Stage đã có sẵn — endpoint RIÊNG, gọn hơn `updatePipelineStage` (form
+ * sửa Stage đầy đủ), dùng cho nút sửa nhanh ngay trong cột SLA của bảng
+ * Stage. Cả 2 endpoint đều yêu cầu `PIPELINE_MANAGE` (chỉ HR Admin).
  */
 export function updateStageSla(
   templateId: number,

@@ -196,6 +196,8 @@ export interface JobPositionFormPayload {
   description: string | null;
   requirements: string | null;
   benefits: string | null;
+  /** Tuỳ chọn — Recruiter chọn Job này mở ra cho Hiring Manager nào (UC-12). */
+  hiringManagerId: number | null;
 }
 
 /**
@@ -223,11 +225,21 @@ export interface InternalJobDetail {
   benefits: string | null;
   status: JobPositionStatus;
   recruiterName: string | null;
+  /** Id Hiring Manager đã gán — dùng để pre-fill lại đúng lựa chọn khi sửa Job. */
+  hiringManagerId: number | null;
   hiringManagerName: string | null;
   pipelineTemplateId: number | null;
   pipelineTemplateName: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Khớp `HiringManagerOptionDto` — dropdown "Chọn Hiring Manager" trên form Job (UC-12). */
+export interface HiringManagerOption {
+  id: number;
+  fullName: string;
+  email: string;
+  departmentName: string | null;
 }
 
 
