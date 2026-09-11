@@ -72,6 +72,8 @@ export const jobPositionFormSchema = z
     description: z.string(),
     requirements: z.string(),
     benefits: z.string(),
+    // Select trả string; '' = chưa chọn Hiring Manager (tuỳ chọn, có thể để sau).
+    hiringManagerId: z.string(),
   })
   .refine(
     (data) => data.salaryMin === null || data.salaryMax === null || data.salaryMin <= data.salaryMax,

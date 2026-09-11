@@ -1,6 +1,7 @@
 import { http } from '@/lib/apiClient';
 import type { PagedResponse } from '@/types/api';
 import type {
+  HiringManagerOption,
   InternalJobDetail,
   InternalJobSummary,
   JobPositionFormPayload,
@@ -41,6 +42,14 @@ export function listInternalJobs(
 /** Chi tiết đầy đủ 1 Job Position — dùng cho tab "Mô tả chi tiết". */
 export function getInternalJobDetail(jobId: string): Promise<InternalJobDetail> {
   return http.get<InternalJobDetail>(`/jobs/${jobId}`);
+}
+
+/**
+ * UC-12: mọi Hiring Manager đang hoạt động, cho dropdown "Chọn Hiring
+ * Manager" trên form tạo/sửa Job — Recruiter tự chọn Job này mở ra cho ai.
+ */
+export function getAvailableHiringManagers(): Promise<HiringManagerOption[]> {
+  return http.get<HiringManagerOption[]>('/jobs/hiring-managers');
 }
 
 /** UC-12 normal flow: tạo Job Position mới (luôn ở trạng thái Draft, tự gán Recruiter = người gọi). */

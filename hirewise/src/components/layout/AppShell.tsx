@@ -33,17 +33,21 @@ interface NavItem {
    * `user.permissions`, do backend resolve sẵn từ `role_permissions` và trả
    * về trong response login (`CurrentUserResponseDto.permissions` — xem
    * `AuthService#issueLoginResponse` phía backend), nên không cần tự khai báo
-   * role → permission thủ công ở FE nữa.
-   *
+   * role → permission thủ công ở FE nữa. Truyền 1 mảng khi có NHIỀU role
+   * khác nhau cùng được vào trang bằng NHỮNG quyền khác nhau (OR — chỉ cần
+   * giữ 1 trong các quyền).
    */
-  requiredPermission?: string;
+  requiredPermission?: string | string[];
   /** Khi true: mục này không highlight xanh khi active, chỉ có hover. */
   noActiveHighlight?: boolean;
 }
 
 function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined): boolean {
   if (!item.requiredPermission) return true;
-  return userPermissions?.includes(item.requiredPermission) ?? false;
+  const required = Array.isArray(item.requiredPermission)
+    ? item.requiredPermission
+    : [item.requiredPermission];
+  return required.some((code) => userPermissions?.includes(code) ?? false);
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -123,6 +127,8 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
   // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
   // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
+  // UC-40: SLA cũng cấu hình ở đây, nhưng vẫn chỉ HR Admin (PIPELINE_MANAGE) —
+  // team quyết định không tách quyền riêng cho Hiring Manager nữa (V47).
   {
     to: ROUTES.PIPELINE_TEMPLATES,
     label: 'Pipeline tuyển dụng',

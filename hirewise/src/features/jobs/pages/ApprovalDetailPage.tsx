@@ -32,6 +32,7 @@ import { showSuccessToast, showErrorToast } from '@/components/ui/Toast/toastBus
 import { approveJob, getJobApprovalDetail, rejectJob } from '../api/approvalApi';
 import { getJobStageScorecard } from '@/features/scorecards/api/scorecardsApi';
 import { JobStageScorecardFormModal } from '@/features/scorecards/components/JobStageScorecardFormModal';
+import { JobDescriptionBlocks } from '../components/JobDescriptionBlocks';
 import { EMPLOYMENT_TYPE_LABELS, type InterviewStageScorecardStatus } from '../types';
 import { STAGE_TYPE_LABELS, type StageType } from '@/features/pipelines/types';
 import { formatSalaryRange } from '../utils';
@@ -443,29 +444,11 @@ export function ApprovalDetailPage() {
             </div>
           )}
 
-          {/* JD Block 1: Mô tả công việc */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">1. Mô tả công việc</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.description || <span className="italic text-neutral-400">Không có mô tả</span>}
-            </div>
-          </div>
-
-          {/* JD Block 2: Yêu cầu ứng viên */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">2. Yêu cầu ứng viên</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.requirements || <span className="italic text-neutral-400">Không có yêu cầu cụ thể</span>}
-            </div>
-          </div>
-
-          {/* JD Block 3: Quyền lợi & Đãi ngộ */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">3. Quyền lợi & Đãi ngộ</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.benefits || <span className="italic text-neutral-400">Không có thông tin quyền lợi</span>}
-            </div>
-          </div>
+          <JobDescriptionBlocks
+            description={job.description}
+            requirements={job.requirements}
+            benefits={job.benefits}
+          />
         </div>
 
         {/* Right Column: Action & Metadata Panel */}
