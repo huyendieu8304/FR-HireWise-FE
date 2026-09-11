@@ -6,7 +6,8 @@ export interface SlaAlertDatum {
   candidateName: string;
   jobTitle: string;
   stageName: string;
-  daysOverdue: number;
+  /** Số giờ đã vượt quá ngưỡng SLA của Stage (SLA cấu hình theo giờ — UC-40). */
+  hoursOverdue: number;
 }
 
 export interface SlaAlertListProps {
@@ -35,7 +36,7 @@ export function SlaAlertList({ items, onRemind }: SlaAlertListProps) {
               {item.candidateName} — {item.jobTitle}
             </p>
             <p className="text-danger-700 mt-0.5 text-xs">
-              Quá SLA {item.daysOverdue} ngày tại {item.stageName}
+              Quá SLA {item.hoursOverdue} giờ tại {item.stageName}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => onRemind?.(item.id)}>

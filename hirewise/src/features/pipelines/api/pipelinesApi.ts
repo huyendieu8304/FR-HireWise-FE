@@ -59,6 +59,23 @@ export function reorderPipelineStages(
 }
 
 /**
+ * US-MGR-04 (UC-40, SLA Monitoring): cấu hình (hoặc xóa) ngưỡng SLA của 1
+ * Stage đã có sẵn — endpoint RIÊNG, không đi qua form sửa Stage đầy đủ (chưa
+ * tồn tại), vì đây là trường DUY NHẤT Hiring Manager được sửa (`SLA_CONFIGURE`,
+ * hẹp hơn `PIPELINE_MANAGE` mà chỉ HR Admin có).
+ */
+export function updateStageSla(
+  templateId: number,
+  stageId: number,
+  slaHours: number | null,
+): Promise<PipelineStage> {
+  return http.patch<PipelineStage>(
+    `/pipeline-templates/${templateId}/stages/${stageId}/sla`,
+    { slaHours },
+  );
+}
+
+/**
  * UC-06 main flow: xóa (soft-delete, `is_active=false`) 1 Stage. Backend
  * tự chặn (409) nếu đang có Application tham chiếu (BR-PIPE-03/EX-01) và
  * tự re-index lại `position` các Stage còn lại (BR-PIPE-04).

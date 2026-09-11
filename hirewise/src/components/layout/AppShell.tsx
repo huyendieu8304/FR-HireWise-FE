@@ -33,17 +33,22 @@ interface NavItem {
    * `user.permissions`, do backend resolve sẵn từ `role_permissions` và trả
    * về trong response login (`CurrentUserResponseDto.permissions` — xem
    * `AuthService#issueLoginResponse` phía backend), nên không cần tự khai báo
-   * role → permission thủ công ở FE nữa.
-   *
+   * role → permission thủ công ở FE nữa. Truyền 1 mảng khi có NHIỀU role
+   * khác nhau cùng được vào trang bằng NHỮNG quyền khác nhau (OR — chỉ cần
+   * giữ 1 trong các quyền, vd trang Pipeline: HR Admin có PIPELINE_MANAGE,
+   * Hiring Manager có SLA_CONFIGURE — UC-40).
    */
-  requiredPermission?: string;
+  requiredPermission?: string | string[];
   /** Khi true: mục này không highlight xanh khi active, chỉ có hover. */
   noActiveHighlight?: boolean;
 }
 
 function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined): boolean {
   if (!item.requiredPermission) return true;
-  return userPermissions?.includes(item.requiredPermission) ?? false;
+  const required = Array.isArray(item.requiredPermission)
+    ? item.requiredPermission
+    : [item.requiredPermission];
+  return required.some((code) => userPermissions?.includes(code) ?? false);
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -123,11 +128,15 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
   // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
   // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
+  // UC-40: Hiring Manager cũng vào được trang này (chỉ có SLA_CONFIGURE, không
+  // có PIPELINE_MANAGE) — CHỈ để cấu hình SLA từng Stage, mọi điều khiển
+  // khác (thêm/xóa/sắp xếp Stage, kích hoạt Template) tự ẩn theo quyền thật
+  // ngay trong PipelineManagementPage.
   {
     to: ROUTES.PIPELINE_TEMPLATES,
     label: 'Pipeline tuyển dụng',
     icon: TreeStructure,
-    requiredPermission: 'PIPELINE_MANAGE',
+    requiredPermission: ['PIPELINE_MANAGE', 'SLA_CONFIGURE'],
   },
   // UC-27: cấu hình Scorecard Template — ScorecardTemplateService yêu cầu
   // SCORECARD_TEMPLATE_MANAGE (Hiring Manager + HR Admin đều có quyền này).

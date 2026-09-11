@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, DotsSixVertical, Plus, Stack, Trash } from '@phosphor-icons/react';
+import { CheckCircle, DotsSixVertical, PencilSimple, Plus, Stack, Trash } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { cn } from '@/utils/cn';
 import { useNotification } from '@/hooks/useNotification';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   activatePipelineTemplate,
   listPipelineStages,
@@ -16,6 +17,7 @@ import { STAGE_TYPE_LABELS, type PipelineStage, type PipelineTemplate } from '..
 import { CreatePipelineTemplateModal } from '../components/CreatePipelineTemplateModal';
 import { CreatePipelineStageModal } from '../components/CreatePipelineStageModal';
 import { DeleteStageConfirmModal } from '../components/DeleteStageConfirmModal';
+import { EditStageSlaModal } from '../components/EditStageSlaModal';
 
 const TEMPLATE_STATUS_BADGE_VARIANT = { DRAFT: 'warning', ACTIVE: 'success' } as const;
 
@@ -45,14 +47,23 @@ function moveStage(
  * UC-04/UC-05/UC-06: HR Admin chọn (hoặc tạo mới) 1 Pipeline Template, xem
  * danh sách Stage hiện tại, thêm Stage mới, kéo-thả để sắp xếp lại thứ tự
  * Stage, và xóa Stage không còn dùng nữa.
+ *
+ * UC-40 (SLA Monitoring): Hiring Manager cũng vào được trang này (chỉ giữ
+ * `SLA_CONFIGURE`, không có `PIPELINE_MANAGE`) — mọi điều khiển đổi CẤU
+ * TRÚC Pipeline (thêm Template/Stage, kéo-thả sắp xếp, xóa, kích hoạt) tự
+ * ẩn với họ; chỉ nút sửa SLA trên mỗi dòng Stage là hiện.
  */
 export function PipelineManagementPage() {
   const notify = useNotification();
   const queryClient = useQueryClient();
+  const permissions = useAuthStore((state) => state.user?.permissions);
+  const canManagePipeline = permissions?.includes('PIPELINE_MANAGE') ?? false;
+  const canConfigureSla = permissions?.includes('SLA_CONFIGURE') ?? false;
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PipelineStage | null>(null);
+  const [slaTarget, setSlaTarget] = useState<PipelineStage | null>(null);
   const [dragStageId, setDragStageId] = useState<number | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
   const reorderDebounceRef = useRef<number | undefined>(undefined);
@@ -149,13 +160,15 @@ export function PipelineManagementPage() {
             <span className="text-xs font-semibold tracking-wide text-neutral-400 uppercase">
               Pipeline Template
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsTemplateModalOpen(true)}
-            >
-              <Plus className="size-4" />
-            </Button>
+            {canManagePipeline && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsTemplateModalOpen(true)}
+              >
+                <Plus className="size-4" />
+              </Button>
+            )}
           </div>
 
           {isLoadingTemplates &&
@@ -165,7 +178,9 @@ export function PipelineManagementPage() {
 
           {!isLoadingTemplates && templates?.length === 0 && (
             <p className="px-1 py-4 text-center text-sm text-neutral-400">
-              Chưa có Template nào. Bấm + để tạo Template đầu tiên.
+              {canManagePipeline
+                ? 'Chưa có Template nào. Bấm + để tạo Template đầu tiên.'
+                : 'Chưa có Template nào.'}
             </p>
           )}
 
@@ -219,8 +234,9 @@ export function PipelineManagementPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* UC-13 điều kiện tiên quyết: chỉ Template ACTIVE mới gán được cho Job Position. */}
-                  {selectedTemplate.status === 'DRAFT' && (
+                  {/* UC-13 điều kiện tiên quyết: chỉ Template ACTIVE mới gán được cho Job Position.
+                      UC-40: Hiring Manager (chỉ SLA_CONFIGURE) không đổi cấu trúc Pipeline. */}
+                  {canManagePipeline && selectedTemplate.status === 'DRAFT' && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -231,10 +247,12 @@ export function PipelineManagementPage() {
                       Kích hoạt
                     </Button>
                   )}
-                  <Button size="sm" onClick={() => setIsStageModalOpen(true)}>
-                    <Plus className="size-4" />
-                    Thêm Stage
-                  </Button>
+                  {canManagePipeline && (
+                    <Button size="sm" onClick={() => setIsStageModalOpen(true)}>
+                      <Plus className="size-4" />
+                      Thêm Stage
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -291,16 +309,18 @@ export function PipelineManagementPage() {
                   {stages?.map((stage) => (
                     <tr
                       key={stage.id}
-                      draggable
-                      onDragStart={() => setDragStageId(stage.id)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDragEnter={() => setDragOverStageId(stage.id)}
+                      draggable={canManagePipeline}
+                      onDragStart={() => canManagePipeline && setDragStageId(stage.id)}
+                      onDragOver={(e) => canManagePipeline && e.preventDefault()}
+                      onDragEnter={() => canManagePipeline && setDragOverStageId(stage.id)}
                       onDragLeave={() =>
+                        canManagePipeline &&
                         setDragOverStageId((current) =>
                           current === stage.id ? null : current,
                         )
                       }
                       onDrop={(e) => {
+                        if (!canManagePipeline) return;
                         e.preventDefault();
                         handleDropOn(stage.id);
                       }}
@@ -317,8 +337,11 @@ export function PipelineManagementPage() {
                         dragStageId === stage.id && 'opacity-50',
                       )}
                     >
-                      <td className="cursor-grab px-2 py-3 text-neutral-300 active:cursor-grabbing">
-                        <DotsSixVertical className="size-4" />
+                      <td className="px-2 py-3 text-neutral-300">
+                        {/* UC-40: Hiring Manager (chỉ SLA_CONFIGURE) không kéo-thả được. */}
+                        {canManagePipeline && (
+                          <DotsSixVertical className="size-4 cursor-grab active:cursor-grabbing" />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-500">
                         {stage.position}
@@ -333,21 +356,39 @@ export function PipelineManagementPage() {
                         {STAGE_TYPE_LABELS[stage.stageType]}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-500">
-                        {stage.slaHours ? `${stage.slaHours}h` : '—'}
+                        {/* SLA không áp dụng cho Stage Terminal (hồ sơ không thể "kẹt" khi
+                            đã tới cuối quy trình) - ẩn hẳn nút sửa, không chỉ disable, để
+                            khỏi phải giải thích lỗi 400 khi bấm vào 1 điều vô nghĩa. */}
+                        {canConfigureSla && !stage.terminal ? (
+                          <button
+                            type="button"
+                            onClick={() => setSlaTarget(stage)}
+                            className="hover:text-primary-600 flex items-center gap-1 text-neutral-700"
+                          >
+                            {stage.slaHours ? `${stage.slaHours}h` : '—'}
+                            <PencilSimple className="size-3.5 text-neutral-400" />
+                          </button>
+                        ) : stage.slaHours ? (
+                          `${stage.slaHours}h`
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {stage.terminal && <Badge variant="info">Terminal</Badge>}
                       </td>
                       <td className="px-2 py-3">
                         {/* UC-06 Screen Description: "Chỉ hiển thị khi hover dòng Stage". */}
-                        <button
-                          type="button"
-                          aria-label={`Xóa Stage ${stage.name}`}
-                          onClick={() => setDeleteTarget(stage)}
-                          className="hover:text-danger-600 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100"
-                        >
-                          <Trash className="size-4" />
-                        </button>
+                        {canManagePipeline && (
+                          <button
+                            type="button"
+                            aria-label={`Xóa Stage ${stage.name}`}
+                            onClick={() => setDeleteTarget(stage)}
+                            className="hover:text-danger-600 text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            <Trash className="size-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -374,6 +415,11 @@ export function PipelineManagementPage() {
             stage={deleteTarget}
             pipelineTemplateId={effectiveTemplateId}
             onClose={() => setDeleteTarget(null)}
+          />
+          <EditStageSlaModal
+            stage={slaTarget}
+            pipelineTemplateId={effectiveTemplateId}
+            onClose={() => setSlaTarget(null)}
           />
         </>
       )}

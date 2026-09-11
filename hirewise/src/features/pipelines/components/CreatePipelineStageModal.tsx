@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,11 +46,28 @@ export function CreatePipelineStageModal({
     control,
     reset,
     setError,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<CreatePipelineStageFormValues>({
     resolver: zodResolver(createPipelineStageSchema),
     defaultValues: { terminal: false, slaHours: null },
   });
+
+  // UC-40: SLA không áp dụng cho Stage Terminal (backend tự ép `terminal=true`
+  // nếu stageType là 1 trong 2 loại Terminal-*, xem PipelineService#createStage) -
+  // tính TRÙNG logic đó ở đây để ẩn field trước khi submit, thay vì để user nhập
+  // xong rồi mới ăn lỗi 400.
+  const stageType = watch('stageType');
+  const isTerminalChecked = watch('terminal');
+  const isTerminal =
+    isTerminalChecked || stageType === 'TERMINAL_SUCCESS' || stageType === 'TERMINAL_REJECTED';
+
+  useEffect(() => {
+    if (isTerminal) {
+      setValue('slaHours', null);
+    }
+  }, [isTerminal, setValue]);
 
   const createMutation = useMutation({
     mutationFn: (values: CreatePipelineStageFormValues) =>
@@ -126,21 +144,23 @@ export function CreatePipelineStageModal({
           error={errors.stageType?.message}
           {...register('stageType')}
         />
-        <Controller
-          name="slaHours"
-          control={control}
-          render={({ field, fieldState }) => (
-            <NumberInput
-              label="SLA (giờ)"
-              helperText="Bỏ trống nếu không giới hạn thời gian ở Stage này."
-              value={field.value}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              min={1}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
+        {!isTerminal && (
+          <Controller
+            name="slaHours"
+            control={control}
+            render={({ field, fieldState }) => (
+              <NumberInput
+                label="SLA (giờ)"
+                helperText="Bỏ trống nếu không giới hạn thời gian ở Stage này."
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                min={1}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+        )}
         <Controller
           name="terminal"
           control={control}

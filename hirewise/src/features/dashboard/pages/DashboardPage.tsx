@@ -11,6 +11,7 @@ import {
   getSourceRoiReport,
 } from '@/features/reports/api/reportsApi';
 import { SOURCE_COLOR_VARS } from '@/features/reports/types';
+import { getSlaAlerts } from '../api/slaAlertsApi';
 import { KpiTile } from '../components/KpiTile';
 import {
   PipelineVelocityChart,
@@ -18,25 +19,6 @@ import {
 } from '../components/PipelineVelocityChart';
 import { SourceRoiDonut, type SourceDatum } from '../components/SourceRoiDonut';
 import { SlaAlertList, type SlaAlertDatum } from '../components/SlaAlertList';
-
-// ⚠️ Danh sách vi phạm SLA vẫn là dữ liệu tĩnh — thuộc module M19 (UC-41),
-// chưa có endpoint. Hai biểu đồ bên dưới đã chạy bằng dữ liệu thật (UC-42/43).
-const SLA_ALERTS: SlaAlertDatum[] = [
-  {
-    id: 'sla-1',
-    candidateName: 'Trịnh Thảo',
-    jobTitle: 'Senior Backend Engineer',
-    stageName: 'Qualification',
-    daysOverdue: 2,
-  },
-  {
-    id: 'sla-2',
-    candidateName: 'Ngô Hải Yến',
-    jobTitle: 'Product Designer',
-    stageName: 'Phỏng vấn chuyên môn',
-    daysOverdue: 5,
-  },
-];
 
 /** Số nguồn tối đa vẽ trên donut thu gọn của Dashboard — phần còn lại gộp vào "Khác". */
 const TOP_SOURCES = 4;
@@ -56,6 +38,9 @@ export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const notify = useNotification();
   const canViewReports = user?.permissions.includes('REPORT_VIEW') ?? false;
+  // UC-41: SLA_VIEW_ALERT được cấp cho Recruiter + Hiring Manager, KHÔNG cho
+  // HR Admin (V2) — ngược với REPORT_VIEW ở trên, không dùng chung điều kiện.
+  const canViewSlaAlerts = user?.permissions.includes('SLA_VIEW_ALERT') ?? false;
 
   const { data: sourceRoi, isLoading: isSourceLoading } = useQuery({
     queryKey: ['reports', 'source-roi', 'dashboard'],
@@ -69,6 +54,12 @@ export function DashboardPage() {
     enabled: canViewReports,
   });
 
+  const { data: slaAlerts, isLoading: isSlaLoading } = useQuery({
+    queryKey: ['sla-alerts', 'dashboard'],
+    queryFn: getSlaAlerts,
+    enabled: canViewSlaAlerts,
+  });
+
   const velocityData: VelocityDatum[] = (velocity?.stages ?? [])
     .filter((stage) => stage.avgDays !== null)
     .map((stage) => ({
@@ -79,6 +70,14 @@ export function DashboardPage() {
 
   const sourceData = toDonutData(sourceRoi?.rows ?? []);
   const inProgress = (sourceRoi?.totalApplications ?? 0) - (sourceRoi?.totalHires ?? 0);
+
+  const slaAlertItems: SlaAlertDatum[] = (slaAlerts ?? []).map((alert) => ({
+    id: alert.applicationId,
+    candidateName: alert.candidateName,
+    jobTitle: alert.jobTitle,
+    stageName: alert.stageName,
+    hoursOverdue: alert.hoursOverdue,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,7 +105,7 @@ export function DashboardPage() {
         />
         <KpiTile
           label="Vi phạm SLA"
-          value={SLA_ALERTS.length}
+          value={isSlaLoading ? '…' : formatNumber(slaAlertItems.length)}
           icon={<WarningOctagon className="size-4" />}
           iconVariant="danger"
           alert
@@ -173,10 +172,21 @@ export function DashboardPage() {
           <WarningOctagon className="text-danger-700 size-4" />
           <h2 className="text-danger-700 text-sm font-semibold">Ứng viên vi phạm SLA</h2>
         </div>
-        <SlaAlertList
-          items={SLA_ALERTS}
-          onRemind={() => notify.info('Đã gửi nhắc nhở tới Recruiter phụ trách.')}
-        />
+        {!canViewSlaAlerts ? (
+          <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
+            Bạn không có quyền xem cảnh báo SLA.
+          </p>
+        ) : isSlaLoading ? (
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-12 w-full rounded-md" />
+            <Skeleton className="h-12 w-full rounded-md" />
+          </div>
+        ) : (
+          <SlaAlertList
+            items={slaAlertItems}
+            onRemind={() => notify.info('Đã gửi nhắc nhở tới Recruiter phụ trách.')}
+          />
+        )}
       </div>
     </div>
   );
