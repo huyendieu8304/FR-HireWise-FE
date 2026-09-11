@@ -13,6 +13,7 @@ import { getPublicJobDetail, submitApplication } from '../api/jobsApi';
 import { applyFormSchema, type ApplyFormValues } from '../schema';
 import { CvDropzone } from '../components/CvDropzone';
 import { EMPLOYMENT_TYPE_LABELS } from '../types';
+import { useUtmSource } from '../hooks/useUtmSource';
 
 /**
  * UC-17: Ứng viên điền thông tin liên hệ + đính kèm CV để nộp hồ sơ cho 1
@@ -24,6 +25,8 @@ export function ApplyPage() {
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
   const [result, setResult] = useState<{ duplicate: boolean } | null>(null);
+  // UC-32: kênh chia sẻ đã dẫn ứng viên tới đây, gửi kèm hồ sơ để quy nguồn.
+  const utmSource = useUtmSource();
 
   const { data: job, isLoading: isJobLoading } = useQuery({
     queryKey: ['jobs', 'detail', jobId],
@@ -46,7 +49,7 @@ export function ApplyPage() {
   const applyMutation = useMutation({
     mutationFn: (values: ApplyFormValues) => {
       setUploadProgress(0);
-      return submitApplication(jobId, values, setUploadProgress);
+      return submitApplication(jobId, { ...values, source: utmSource }, setUploadProgress);
     },
     onSuccess: (response) => {
       setResult({ duplicate: response.duplicate });

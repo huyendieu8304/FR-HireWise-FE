@@ -173,7 +173,15 @@ function JdSection({ title, content }: { title: string; content: string | null }
       <h3 className="mb-2 text-sm font-semibold tracking-wide text-neutral-700 uppercase">
         {title}
       </h3>
-      <p className="text-sm whitespace-pre-line text-neutral-600">{content}</p>
+      {/* Nội dung do Recruiter soạn qua RichTextEditor (WYSIWYG), lưu dạng HTML —
+          render trực tiếp bằng dangerouslySetInnerHTML, cùng quy ước với
+          OfferReviewPanel/EmailTemplatePreviewModal (nội dung do role nội bộ đã
+          qua RBAC nhập, không phải dữ liệu ứng viên). Trước đây render như text
+          thường nên hiện nguyên thẻ HTML thay vì định dạng (bug đã sửa). */}
+      <div
+        className="prose prose-sm max-w-none text-sm text-neutral-600"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
     </div>
   );
 }

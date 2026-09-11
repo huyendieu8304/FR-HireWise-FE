@@ -114,6 +114,22 @@ export interface JobApprovalDetail {
   pipelineTemplateName: string | null;
   /** Danh sách các bước trong quy trình tuyển dụng. */
   pipelineStages: PipelineStage[];
+  /**
+   * UC-27 hard gate: checklist cấu hình Scorecard cho từng Stage loại
+   * INTERVIEW của pipeline này — phải `configured: true` hết mới được
+   * Approve. Rỗng nếu pipeline không có Stage phỏng vấn nào.
+   */
+  interviewStageScorecards: InterviewStageScorecardStatus[];
+}
+
+/** Khớp `InterviewStageScorecardStatusDto`. */
+export interface InterviewStageScorecardStatus {
+  pipelineStageId: number;
+  stageName: string;
+  position: number;
+  configured: boolean;
+  /** `null` nếu `configured = false`. */
+  jobStageScorecardId: string | null;
 }
 
 /** Body gửi lên khi từ chối Job (UC-15 AF-01). */
@@ -180,6 +196,8 @@ export interface JobPositionFormPayload {
   description: string | null;
   requirements: string | null;
   benefits: string | null;
+  /** Tuỳ chọn — Recruiter chọn Job này mở ra cho Hiring Manager nào (UC-12). */
+  hiringManagerId: number | null;
 }
 
 /**
@@ -207,6 +225,8 @@ export interface InternalJobDetail {
   benefits: string | null;
   status: JobPositionStatus;
   recruiterName: string | null;
+  /** Id Hiring Manager đã gán — dùng để pre-fill lại đúng lựa chọn khi sửa Job. */
+  hiringManagerId: number | null;
   hiringManagerName: string | null;
   pipelineTemplateId: number | null;
   pipelineTemplateName: string | null;
@@ -214,5 +234,76 @@ export interface InternalJobDetail {
   updatedAt: string;
 }
 
+/** Khớp `HiringManagerOptionDto` — dropdown "Chọn Hiring Manager" trên form Job (UC-12). */
+export interface HiringManagerOption {
+  id: number;
+  fullName: string;
+  email: string;
+  departmentName: string | null;
+}
 
 
+
+
+/* ------------------------------------------------------------------ */
+/* UC-19 / UC-31 / UC-32 — chia sẻ tin tuyển dụng ra kênh ngoài        */
+/* ------------------------------------------------------------------ */
+
+/** Khớp `domain.PublishingChannelCode` phía backend (bảng `publishing_channels`). */
+export type PublishingChannelCode = 'LINKEDIN' | 'FACEBOOK' | 'X' | 'COPY_LINK';
+
+export const PUBLISHING_CHANNEL_LABELS: Record<PublishingChannelCode, string> = {
+  LINKEDIN: 'LinkedIn',
+  FACEBOOK: 'Facebook',
+  X: 'X (Twitter)',
+  COPY_LINK: 'Sao chép link',
+};
+
+/**
+ * Thẻ Open Graph mà LinkedIn/Facebook sẽ đọc để dựng preview.
+ *
+ * Lưu ý nghiệp vụ: cả hai nền tảng đều BỎ QUA mọi caption truyền vào share
+ * intent — bài đăng dựng hoàn toàn từ 3 giá trị này. Nên đây chính là toàn
+ * bộ nội dung bài đăng, không phải một phần của nó.
+ */
+export interface SharePreview {
+  title: string;
+  description: string;
+  imageUrl: string;
+  siteName: string;
+}
+
+/** Một kênh Recruiter có thể bấm chia sẻ (UC-31). */
+export interface ShareTarget {
+  code: PublishingChannelCode;
+  name: string;
+  /** Link được đem đi chia sẻ — trỏ vào trang Open Graph của backend. */
+  shareUrl: string;
+  /** URL popup của nền tảng; `null` với `COPY_LINK` (FE tự copy clipboard). */
+  intentUrl: string | null;
+  shareCount: number;
+  lastSharedAt: string | null;
+}
+
+export interface JobShareTargets {
+  preview: SharePreview;
+  channels: ShareTarget[];
+}
+
+/** Một dòng trong bảng thống kê UC-32. */
+export interface ShareStatsRow {
+  code: PublishingChannelCode;
+  name: string;
+  shareCount: number;
+  clickCount: number;
+  applicationCount: number;
+  lastSharedAt: string | null;
+  shareUrl: string;
+}
+
+export interface JobShareStats {
+  rows: ShareStatsRow[];
+  totalApplications: number;
+  /** Ứng viên vào thẳng Job Board, không qua link chia sẻ nào. */
+  directApplications: number;
+}

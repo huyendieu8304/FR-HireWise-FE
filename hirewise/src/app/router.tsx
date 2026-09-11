@@ -15,12 +15,16 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { UserManagementPage } from '@/features/users/pages/UserManagementPage';
 import { CloudStorageIntegrationPage } from '@/features/integrations/pages/CloudStorageIntegrationPage';
 import { CalendarIntegrationPage } from '@/features/integrations/pages/CalendarIntegrationPage';
+import { PublishingChannelsPage } from '@/features/integrations/pages/PublishingChannelsPage';
 import { PipelineManagementPage } from '@/features/pipelines/pages/PipelineManagementPage';
+import { ScorecardTemplatesPage } from '@/features/scorecards/pages/ScorecardTemplatesPage';
+import { ReportsPage } from '@/features/reports/pages/ReportsPage';
 import { ComponentShowcasePage } from '@/features/showcase/pages/ComponentShowcasePage';
 import { EmailTemplatePage } from '@/features/email-templates/pages/EmailTemplatePage';
 import { ApplicantCardPage } from '@/features/applications/pages/ApplicantCardPage';
 import { InterviewCalendarPage } from '@/features/kanban/pages/InterviewCalendarPage';
 import { PublicOfferPage } from '@/features/offers/pages/PublicOfferPage';
+import { PublicBookingPage } from '@/features/booking/pages/PublicBookingPage';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -44,6 +48,8 @@ export const router = createBrowserRouter([
       { path: ROUTES.CAREERS_APPLY, element: <ApplyPage /> },
       /** UC-38/UC-39: ứng viên xác thực OTP rồi ký Offer điện tử. */
       { path: ROUTES.OFFER_PUBLIC, element: <PublicOfferPage /> },
+      /** UC-34/UC-35: ứng viên tự chọn giờ phỏng vấn (Calendly-style). */
+      { path: ROUTES.BOOKING_PUBLIC, element: <PublicBookingPage /> },
     ],
   },
   {
@@ -54,6 +60,8 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
           { path: ROUTES.USERS, element: <UserManagementPage /> },
+          /** UC-42/UC-43: menu [Bao cao] - 2 tab Source ROI / Pipeline Velocity. */
+          { path: ROUTES.REPORTS, element: <ReportsPage /> },
           {
             path: ROUTES.SETTINGS_INTEGRATIONS,
             element: <CloudStorageIntegrationPage />,
@@ -63,7 +71,14 @@ export const router = createBrowserRouter([
             path: ROUTES.SETTINGS_CALENDAR,
             element: <CalendarIntegrationPage />,
           },
+          /** UC-19: HR Admin bật/tắt kênh chia sẻ tin tuyển dụng. */
+          {
+            path: ROUTES.SETTINGS_PUBLISHING_CHANNELS,
+            element: <PublishingChannelsPage />,
+          },
           { path: ROUTES.PIPELINE_TEMPLATES, element: <PipelineManagementPage /> },
+          /** UC-27: Hiring Manager cấu hình Scorecard Template. */
+          { path: ROUTES.SCORECARD_TEMPLATES, element: <ScorecardTemplatesPage /> },
           /** danh sách mọi Job (lọc phòng ban/trạng thái) -> chi tiết Job  */
           { path: ROUTES.JOBS, element: <JobListPage /> },
           /** UC-12: tạo mới / lưu nháp lại Job Position — cùng 1 trang form. */

@@ -144,3 +144,39 @@ export interface AiScreeningResult {
   createdAt: string;
   completedAt: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// UC-25: Gửi liên kết Self-service Booking cho ứng viên
+// ---------------------------------------------------------------------------
+
+import type { InterviewMode } from '@/features/kanban/types';
+
+export interface SlotItem {
+  slotDate: string; // YYYY-MM-DD
+  slotTime: string; // HH:mm
+  durationMinutes?: number;
+}
+
+export interface SendBookingLinkRequest {
+  interviewerId: number;
+  dateRangeStart: string; // YYYY-MM-DD
+  dateRangeEnd: string; // YYYY-MM-DD
+  targetStageId?: number;
+  mode: InterviewMode;
+  locationOrLink?: string;
+  slots: SlotItem[];
+}
+
+export interface BookingRequestResponse {
+  id: number;
+  bookingToken: string;
+  bookingLink: string;
+  dateRangeStart: string;
+  dateRangeEnd: string;
+  expiresAt: string;
+  status: 'OPEN' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
+  interviewerId: number;
+  interviewerName: string;
+  totalSlots: number;
+}
+

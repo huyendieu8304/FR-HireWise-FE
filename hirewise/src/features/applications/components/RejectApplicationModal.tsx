@@ -13,6 +13,12 @@ export interface RejectApplicationModalProps {
   onClose: () => void;
   applicationId: string;
   candidateName: string;
+  /**
+   * UC-23: tên cột Terminal-Rejected khi modal mở từ thao tác kéo-thả trên
+   * Kanban — chỉ để hiển thị. Không cần gửi id Stage: endpoint /reject tự
+   * tìm Stage TERMINAL_REJECTED của pipeline và tự chuyển hồ sơ sang đó.
+   */
+  targetStageName?: string;
   onRejected?: () => void;
 }
 
@@ -30,6 +36,7 @@ export function RejectApplicationModal({
   onClose,
   applicationId,
   candidateName,
+  targetStageName,
   onRejected,
 }: RejectApplicationModalProps) {
   const notify = useNotification();
@@ -74,7 +81,11 @@ export function RejectApplicationModal({
       open={open}
       onClose={() => !rejectMutation.isPending && handleClose()}
       title="Từ chối ứng viên"
-      description={`Chọn lý do từ chối chuẩn hóa cho "${candidateName}". Thao tác này không thể hoàn tác (BR-REJ-03) — hệ thống sẽ tự động gửi email thông báo kết quả cho ứng viên.`}
+      description={
+        targetStageName
+          ? `Chọn lý do từ chối chuẩn hóa để chuyển "${candidateName}" sang Stage "${targetStageName}". Hủy thì hồ sơ giữ nguyên Stage hiện tại. Thao tác này không thể hoàn tác (BR-REJ-03) — hệ thống sẽ tự động gửi email thông báo kết quả cho ứng viên.`
+          : `Chọn lý do từ chối chuẩn hóa cho "${candidateName}". Thao tác này không thể hoàn tác (BR-REJ-03) — hệ thống sẽ tự động gửi email thông báo kết quả cho ứng viên.`
+      }
       size="md"
       footer={
         <>

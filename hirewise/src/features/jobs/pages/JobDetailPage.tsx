@@ -27,7 +27,11 @@ import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
 import { KanbanBoardView } from '@/features/kanban/components/KanbanBoardView';
 import { useAuthStore } from '@/store/useAuthStore';
+import { JobDescriptionBlocks } from '../components/JobDescriptionBlocks';
 import { SubmitForApprovalModal } from '../components/SubmitForApprovalModal';
+import { JobLifecycleActions } from '../components/JobLifecycleActions';
+import { ShareJobModal } from '../components/ShareJobModal';
+import { SharePerformancePanel } from '../components/SharePerformancePanel';
 
 const STATUS_BADGE_VARIANTS: Record<JobPositionStatus, BadgeVariant> = {
   DRAFT: 'neutral',
@@ -56,6 +60,7 @@ export function JobDetailPage() {
     (state) => state.user?.permissions.includes('JOB_SUBMIT') ?? false,
   );
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const tabParam = searchParams.get('tab');
   const activeTab: DetailTab = tabParam === 'kanban' ? 'kanban' : 'description';
@@ -122,7 +127,9 @@ export function JobDetailPage() {
                 <Badge variant="primary">{EMPLOYMENT_TYPE_LABELS[job.employmentType]}</Badge>
               )}
             </div>
-            {/* BR-JOB-04: chỉ Draft/Rejected còn sửa được — Published chỉ Đóng/Tạm dừng (chưa làm). */}
+            {/* BR-JOB-04: chỉ Draft/Rejected còn sửa được. Từ Approved trở đi,
+                vòng đời do JobLifecycleActions lo (UC-45 Đăng tin, UC-44
+                Tạm dừng/Đóng/Mở lại). */}
             {(canEditJob || canSubmitJob) && (job.status === 'DRAFT' || job.status === 'REJECTED') && (
               <div className="flex items-center gap-2">
                 {canEditJob && (
@@ -142,6 +149,7 @@ export function JobDetailPage() {
                 )}
               </div>
             )}
+            <JobLifecycleActions job={job} onShare={() => setIsShareModalOpen(true)} />
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
             {job.departmentName && (
@@ -240,29 +248,11 @@ export function JobDetailPage() {
       {/* Tab Content */}
       {activeTab === 'description' ? (
         <div className="flex flex-col gap-6">
-          {/* JD Block 1: Mô tả công việc */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">1. Mô tả công việc</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.description || <span className="italic text-neutral-400">Không có mô tả</span>}
-            </div>
-          </div>
-
-          {/* JD Block 2: Yêu cầu ứng viên */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">2. Yêu cầu ứng viên</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.requirements || <span className="italic text-neutral-400">Không có yêu cầu cụ thể</span>}
-            </div>
-          </div>
-
-          {/* JD Block 3: Quyền lợi & Đãi ngộ */}
-          <div className="rounded-lg border border-neutral-200 bg-white p-6">
-            <h2 className="text-base font-bold text-neutral-900">3. Quyền lợi & Đãi ngộ</h2>
-            <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-neutral-700">
-              {job.benefits || <span className="italic text-neutral-400">Không có thông tin quyền lợi</span>}
-            </div>
-          </div>
+          <JobDescriptionBlocks
+            description={job.description}
+            requirements={job.requirements}
+            benefits={job.benefits}
+          />
 
           {/* Metadata Panel */}
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-5 text-xs text-neutral-600">
@@ -286,6 +276,12 @@ export function JobDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* UC-32: chi hien khi Job da tung co the chia se duoc - Draft/Pending
+              chua co link nao ton tai nen bang so lieu chac chan rong. */}
+          {(job.status === 'PUBLISHED' || job.status === 'PAUSED' || job.status === 'CLOSED') && (
+            <SharePerformancePanel jobId={job.id} />
+          )}
         </div>
       ) : (
         <KanbanBoardView jobId={job.id} />
@@ -294,6 +290,12 @@ export function JobDetailPage() {
       <SubmitForApprovalModal
         open={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
+        job={job}
+      />
+
+      <ShareJobModal
+        open={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
         job={job}
       />
     </div>

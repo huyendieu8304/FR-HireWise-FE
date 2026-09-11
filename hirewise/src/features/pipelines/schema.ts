@@ -43,3 +43,14 @@ export const createPipelineStageSchema = z.object({
 });
 
 export type CreatePipelineStageFormValues = z.infer<typeof createPipelineStageSchema>;
+
+/**
+ * US-MGR-04 (UC-40, SLA Monitoring): sửa riêng ngưỡng SLA của 1 Stage đã có
+ * — cùng rule với field `slaHours` ở trên, tách schema riêng vì đây là
+ * form CHỈ có đúng 1 field (endpoint `SLA_CONFIGURE` cũng chỉ nhận field này).
+ */
+export const updateStageSlaSchema = z.object({
+  slaHours: z.number().positive('SLA phải là số giờ dương').nullable(),
+});
+
+export type UpdateStageSlaFormValues = z.infer<typeof updateStageSlaSchema>;

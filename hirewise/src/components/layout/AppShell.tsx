@@ -6,6 +6,7 @@ import {
   CaretDown,
   ChartBar,
   CheckCircle,
+  ClipboardText,
   CloudArrowUp,
   EnvelopeSimple,
   PuzzlePiece,
@@ -13,12 +14,14 @@ import {
   SquaresFour,
   TreeStructure,
   UsersThree,
+  ShareNetwork,
 } from '@phosphor-icons/react';
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useNotification } from '@/hooks/useNotification';
 import { getInitials } from '@/utils/formatters';
+import { queryClient } from '@/lib/queryClient';
 
 interface NavItem {
   to: string;
@@ -30,15 +33,21 @@ interface NavItem {
    * `user.permissions`, do backend resolve sẵn từ `role_permissions` và trả
    * về trong response login (`CurrentUserResponseDto.permissions` — xem
    * `AuthService#issueLoginResponse` phía backend), nên không cần tự khai báo
-   * role → permission thủ công ở FE nữa.
-   *
+   * role → permission thủ công ở FE nữa. Truyền 1 mảng khi có NHIỀU role
+   * khác nhau cùng được vào trang bằng NHỮNG quyền khác nhau (OR — chỉ cần
+   * giữ 1 trong các quyền).
    */
-  requiredPermission?: string;
+  requiredPermission?: string | string[];
+  /** Khi true: mục này không highlight xanh khi active, chỉ có hover. */
+  noActiveHighlight?: boolean;
 }
 
 function isNavItemVisible(item: NavItem, userPermissions: string[] | undefined): boolean {
   if (!item.requiredPermission) return true;
-  return userPermissions?.includes(item.requiredPermission) ?? false;
+  const required = Array.isArray(item.requiredPermission)
+    ? item.requiredPermission
+    : [item.requiredPermission];
+  return required.some((code) => userPermissions?.includes(code) ?? false);
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -65,7 +74,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: CalendarBlank,
     requiredPermission: 'APPLICATION_VIEW',
   },
-  { to: '/reports', label: 'Báo cáo', icon: ChartBar },
+  // UC-42/UC-43: 2 tab bao cao cua module M20. REPORT_VIEW duoc cap cho
+  // Recruiter, Hiring Manager va HR Admin (V44) - Interviewer khong thay muc nay.
+  {
+    to: ROUTES.REPORTS,
+    label: 'Báo cáo',
+    icon: ChartBar,
+    requiredPermission: 'REPORT_VIEW',
+  },
   { to: ROUTES.COMPONENT_SHOWCASE, label: 'Component Showcase', icon: PuzzlePiece },
 ];
 
@@ -91,6 +107,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Tích hợp Cloud Storage',
     icon: CloudArrowUp,
     requiredPermission: 'INTEGRATION_MANAGE',
+    noActiveHighlight: true,
   },
   // UC-18: Calendar API (Google Calendar / Outlook) — CalendarIntegrationService yêu cầu INTEGRATION_MANAGE.
   {
@@ -99,14 +116,32 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: CalendarBlank,
     requiredPermission: 'INTEGRATION_MANAGE',
   },
+  // UC-19: bật/tắt kênh chia sẻ tin tuyển dụng — PublishingChannelService yêu cầu
+  // INTEGRATION_MANAGE, cùng quyền với 2 mục Tích hợp phía trên dù ở đây không có OAuth.
+  {
+    to: ROUTES.SETTINGS_PUBLISHING_CHANNELS,
+    label: 'Kênh chia sẻ tin tuyển dụng',
+    icon: ShareNetwork,
+    requiredPermission: 'INTEGRATION_MANAGE',
+  },
   // UC-04: cấu hình Pipeline Template/Stage — PipelineService yêu cầu
   // PIPELINE_MANAGE. Khác với mục "Pipeline" ở NAV_ITEMS phía trên (bảng
   // Kanban ứng viên, UC-22/UC-23, xem KanbanBoardPage) — mục này là màn hình cấu hình.
+  // UC-40: SLA cũng cấu hình ở đây, nhưng vẫn chỉ HR Admin (PIPELINE_MANAGE) —
+  // team quyết định không tách quyền riêng cho Hiring Manager nữa (V47).
   {
     to: ROUTES.PIPELINE_TEMPLATES,
     label: 'Pipeline tuyển dụng',
     icon: TreeStructure,
     requiredPermission: 'PIPELINE_MANAGE',
+  },
+  // UC-27: cấu hình Scorecard Template — ScorecardTemplateService yêu cầu
+  // SCORECARD_TEMPLATE_MANAGE (Hiring Manager + HR Admin đều có quyền này).
+  {
+    to: ROUTES.SCORECARD_TEMPLATES,
+    label: 'Scorecard Template',
+    icon: ClipboardText,
+    requiredPermission: 'SCORECARD_TEMPLATE_MANAGE',
   },
 ];
 
@@ -153,6 +188,9 @@ export function AppShell() {
     // client, quay về trang đăng nhập. Khi có backend thật, gọi thêm
     // http.post('/auth/logout') trước clearSession() để revoke phía server.
     clearSession();
+    // Xóa cache server-state cùng lúc - tránh người đăng nhập kế tiếp trên
+    // cùng tab (role khác) thấy thoáng qua dữ liệu của role vừa đăng xuất.
+    queryClient.clear();
     notify.info('Đã đăng xuất.');
     navigate(ROUTES.LOGIN, { replace: true });
   }
@@ -194,7 +232,7 @@ export function AppShell() {
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
-                      isActive && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
+                      isActive && !item.noActiveHighlight && 'bg-primary-50 text-primary-700 hover:bg-primary-50',
                     )
                   }
                 >

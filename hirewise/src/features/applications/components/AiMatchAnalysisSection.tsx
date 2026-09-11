@@ -22,8 +22,11 @@ function matchScoreBadgeVariant(score: number): BadgeVariant {
 /**
  * UC-21: tab/khối "AI Match Analysis" trên Applicant Card — Match Score,
  * breakdown Matched/Missing Skills, và tóm tắt do AI sinh ra. AI Screening
- * chạy bất đồng bộ ở backend (tự động khi có Application mới, UC-17) nên
- * khi đang `PENDING`, component tự poll lại thay vì bắt Recruiter F5 tay.
+ * chạy hoàn toàn thủ công - Recruiter bấm "Phân tích lại" ở đây (1 ứng
+ * viên) hoặc "Quét cả cột" trên cột "Mới" của Kanban board (hàng loạt).
+ * Trong cả 2 trường hợp, việc gọi AI Engine thật vẫn chạy bất đồng bộ ở
+ * backend nên khi đang `PENDING`, component tự poll lại thay vì bắt
+ * Recruiter F5 tay.
  */
 export function AiMatchAnalysisSection({ applicationId, canRun }: AiMatchAnalysisSectionProps) {
   const notify = useNotification();

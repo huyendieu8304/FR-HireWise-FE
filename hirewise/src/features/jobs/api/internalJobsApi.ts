@@ -1,6 +1,7 @@
 import { http } from '@/lib/apiClient';
 import type { PagedResponse } from '@/types/api';
 import type {
+  HiringManagerOption,
   InternalJobDetail,
   InternalJobSummary,
   JobPositionFormPayload,
@@ -43,6 +44,14 @@ export function getInternalJobDetail(jobId: string): Promise<InternalJobDetail> 
   return http.get<InternalJobDetail>(`/jobs/${jobId}`);
 }
 
+/**
+ * UC-12: mọi Hiring Manager đang hoạt động, cho dropdown "Chọn Hiring
+ * Manager" trên form tạo/sửa Job — Recruiter tự chọn Job này mở ra cho ai.
+ */
+export function getAvailableHiringManagers(): Promise<HiringManagerOption[]> {
+  return http.get<HiringManagerOption[]>('/jobs/hiring-managers');
+}
+
 /** UC-12 normal flow: tạo Job Position mới (luôn ở trạng thái Draft, tự gán Recruiter = người gọi). */
 export function createInternalJob(payload: JobPositionFormPayload): Promise<InternalJobDetail> {
   return http.post<InternalJobDetail>('/jobs', payload);
@@ -69,4 +78,47 @@ export function submitJobForApproval(
   payload: SubmitJobPayload,
 ): Promise<InternalJobDetail> {
   return http.post<InternalJobDetail>(`/jobs/${jobId}/submit`, payload);
+}
+
+/**
+ * UC-45: đăng 1 Job đã được Hiring Manager phê duyệt (`APPROVED`) lên Public
+ * Job Board — backend chuyển status sang `PUBLISHED`, từ đó job mới hiện ở
+ * `/careers` và mới nhận được hồ sơ. Cần permission `JOB_PUBLISH` và người
+ * gọi phải là Recruiter phụ trách chính Job đó.
+ *
+ * Lỗi có thể gặp: 409 `JOB_POSITION_NOT_PUBLISHABLE` (job không ở trạng thái
+ * Đã phê duyệt), 403 nếu không phải chủ Job.
+ */
+export function publishJob(jobId: string): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>(`/jobs/${jobId}/publish`);
+}
+
+/**
+ * UC-44 normal flow: tạm dừng 1 Job đang `PUBLISHED` — job bị ẩn khỏi Job
+ * Board và ngừng nhận hồ sơ mới, nhưng ứng viên/hồ sơ hiện có giữ nguyên và
+ * có thể Mở lại bất kỳ lúc nào. Cần permission `JOB_CLOSE_PAUSE`.
+ *
+ * @param reason lý do tuỳ chọn, chỉ lưu vào audit log để tra cứu về sau
+ */
+export function pauseJob(jobId: string, reason?: string): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>(`/jobs/${jobId}/pause`, { reason: reason || undefined });
+}
+
+/**
+ * UC-44 normal flow: đóng hẳn 1 Job đang `PUBLISHED` hoặc `PAUSED`.
+ * `CLOSED` là trạng thái chấm dứt (BR-JOB-05) — KHÔNG có API mở lại, muốn
+ * tuyển tiếp phải tạo Job Position mới (UC-12).
+ *
+ * @param reason lý do tuỳ chọn, chỉ lưu vào audit log để tra cứu về sau
+ */
+export function closeJob(jobId: string, reason?: string): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>(`/jobs/${jobId}/close`, { reason: reason || undefined });
+}
+
+/**
+ * UC-44 AF-01: mở lại 1 Job đang `PAUSED` → quay thẳng về `PUBLISHED` và hiện
+ * lại trên Job Board ngay. BR-JOB-05: KHÔNG cần Hiring Manager duyệt lại.
+ */
+export function resumeJob(jobId: string): Promise<InternalJobDetail> {
+  return http.post<InternalJobDetail>(`/jobs/${jobId}/resume`);
 }

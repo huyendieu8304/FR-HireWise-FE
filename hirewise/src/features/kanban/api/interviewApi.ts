@@ -39,3 +39,21 @@ export function getInterviewCalendar(
   });
 }
 
+export interface InterviewerBusySlot {
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+}
+
+/**
+ * UC-25: Lấy danh sách các khung giờ bận của interviewer trong khoảng thời gian đã chọn.
+ */
+export function getInterviewerBusySlots(
+  interviewerId: number,
+  startDate: string,
+  endDate: string,
+): Promise<InterviewerBusySlot[]> {
+  return http.get<InterviewerBusySlot[]>(`/applications/interviewers/${interviewerId}/busy-slots`, {
+    params: { startDate, endDate },
+  });
+}
+

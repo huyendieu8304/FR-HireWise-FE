@@ -26,6 +26,9 @@ export { ToastProvider } from './Toast/ToastProvider';
 
 export { Skeleton } from './Skeleton/Skeleton';
 
+export { EmptyState } from './EmptyState/EmptyState';
+export type { EmptyStateProps } from './EmptyState/EmptyState';
+
 export { Badge } from './Badge/Badge';
 export type { BadgeProps, BadgeVariant } from './Badge/Badge';
 

@@ -46,6 +46,12 @@ export interface SubmitApplicationPayload {
   email: string;
   phone: string;
   cvFile: File;
+  /**
+   * UC-32: `utm_source` của link chia sẻ đã dẫn ứng viên tới đây, đọc từ query
+   * string chứ không phải người dùng nhập. Bỏ trống khi ứng viên vào thẳng
+   * Job Board.
+   */
+  source?: string;
 }
 
 /**
@@ -65,6 +71,11 @@ export function submitApplication(
   formData.append('email', payload.email);
   formData.append('phone', payload.phone);
   formData.append('cvFile', payload.cvFile);
+  // Chỉ gửi khi thật sự có nguồn — gửi chuỗi rỗng sẽ khiến applications.source
+  // là '' thay vì NULL, làm hỏng cách UC-32 phân biệt "vào thẳng Job Board".
+  if (payload.source) {
+    formData.append('source', payload.source);
+  }
 
   return http.post<SubmitApplicationResponse>(
     `/public/jobs/${jobId}/applications`,

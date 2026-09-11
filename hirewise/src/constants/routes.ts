@@ -12,12 +12,16 @@ export const ROUTES = {
   JOB_DETAIL: '/jobs/:jobId',
   /** UC-12 AF-01: "Lưu nháp" lại 1 Job đang Draft/Rejected. */
   JOB_EDIT: '/jobs/:jobId/edit',
+  /** UC-42/UC-43: Dashboard Source ROI va Pipeline Velocity (module M20). */
+  REPORTS: '/reports',
   USERS: '/users',
   COMPONENT_SHOWCASE: '/components',
   CAREERS: '/careers',
   CAREERS_APPLY: '/careers/:jobId/apply',
   SETTINGS_INTEGRATIONS: '/settings/integrations',
   PIPELINE_TEMPLATES: '/settings/pipeline-templates',
+  /** UC-27: Hiring Manager cấu hình Scorecard Template (tiêu chí đánh giá phỏng vấn). */
+  SCORECARD_TEMPLATES: '/settings/scorecard-templates',
   SETTINGS_EMAIL_TEMPLATES: '/settings/email-templates',
   /** UC-14: Hiring Manager xem danh sách Job đang chờ duyệt. */
   JOB_APPROVALS: '/approvals',
@@ -27,9 +31,13 @@ export const ROUTES = {
   APPLICATION_DETAIL: '/applications/:applicationId',
   /** UC-18: HR Admin cấu hình và đồng bộ Google Calendar / Outlook Calendar. */
   SETTINGS_CALENDAR: '/settings/integrations/calendar',
+  /** UC-19: HR Admin bật/tắt kênh chia sẻ tin tuyển dụng ra bên ngoài. */
+  SETTINGS_PUBLISHING_CHANNELS: '/settings/integrations/publishing-channels',
   /** UC-24: Calendar view toàn bộ lịch phỏng vấn đã xếp. */
   INTERVIEW_CALENDAR: '/interviews/calendar',
   /** UC-38/UC-39: trang ứng viên mở từ liên kết bảo mật trong email EM-11 — xác thực OTP rồi ký điện tử. */
   OFFER_PUBLIC: '/offer/:token',
+  /** UC-34/UC-35: trang ứng viên tự chọn giờ phỏng vấn từ liên kết trong email EM-06. */
+  BOOKING_PUBLIC: '/booking/:token',
 } as const;
 
