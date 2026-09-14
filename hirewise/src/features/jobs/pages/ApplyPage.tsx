@@ -25,6 +25,8 @@ export function ApplyPage() {
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
   const [result, setResult] = useState<{ duplicate: boolean } | null>(null);
+  // Tin bị đóng / hết hạn nộp hồ sơ đúng lúc ứng viên đang điền form (backend trả 404).
+  const [isJobClosed, setIsJobClosed] = useState(false);
   // UC-32: kênh chia sẻ đã dẫn ứng viên tới đây, gửi kèm hồ sơ để quy nguồn.
   const utmSource = useUtmSource();
 
@@ -60,6 +62,8 @@ export function ApplyPage() {
       // inline ngay dưới field CV thay vì toast chung chung.
       if (error instanceof AppError && error.status === 400) {
         setError('cvFile', { message: error.message });
+      } else if (error instanceof AppError && error.status === 404) {
+        setIsJobClosed(true);
       }
     },
   });
@@ -101,7 +105,7 @@ export function ApplyPage() {
             <Skeleton className="h-5 w-1/2" />
             <Skeleton className="h-4 w-1/3" />
           </div>
-        ) : job ? (
+        ) : job && !isJobClosed ? (
           <>
             <p className="text-primary-700 text-sm font-medium">Ứng tuyển: {job.title}</p>
             <p className="text-primary-600/80 mt-0.5 text-xs">
@@ -121,7 +125,7 @@ export function ApplyPage() {
         )}
       </div>
 
-      {job && (
+      {job && !isJobClosed && (
         <div className="rounded-md border border-neutral-200 bg-neutral-0 p-6">
           <h1 className="text-lg font-bold text-neutral-900">Nộp hồ sơ ứng tuyển</h1>
           <p className="mt-1 text-sm text-neutral-500">

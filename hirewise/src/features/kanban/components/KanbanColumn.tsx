@@ -17,7 +17,7 @@ interface KanbanColumnProps {
   onDrop: () => void;
   /** UC-20: mở Applicant Card chi tiết của 1 Application. */
   onCardClick: (applicationId: string) => void;
-  /** UC-21: có quyền `AI_VIEW` không — ẩn nút "Quét cả cột" nếu không. */
+  /** UC-21: có quyền `AI_RUN` không — ẩn nút "Quét cả cột" nếu không. */
   canRunAi: boolean;
   /** UC-21: cột này đang chạy "Quét cả cột" (disable nút + hiện spinner). */
   isScanningAi: boolean;

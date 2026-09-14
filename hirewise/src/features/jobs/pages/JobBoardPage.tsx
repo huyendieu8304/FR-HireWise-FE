@@ -69,10 +69,16 @@ export function JobBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs]);
 
-  const { data: jobDetail, isLoading: isDetailLoading } = useQuery({
+  const {
+    data: jobDetail,
+    isLoading: isDetailLoading,
+    isError: isDetailError,
+  } = useQuery({
     queryKey: ['jobs', 'detail', selectedJobId],
     queryFn: () => getPublicJobDetail(selectedJobId),
     enabled: !!selectedJobId,
+    // 404 = tin đã đóng/tạm dừng/hết hạn nộp hồ sơ — thử lại cũng không đổi kết quả.
+    retry: false,
   });
 
   const jobCountLabel = useMemo(() => {
@@ -126,6 +132,12 @@ export function JobBoardPage() {
               <Skeleton className="h-4 w-1/3" />
               <Skeleton className="h-32 w-full" />
             </div>
+          )}
+
+          {!isDetailLoading && isDetailError && (
+            <p className="py-8 text-center text-sm text-neutral-500">
+              Tin tuyển dụng này không còn khả dụng hoặc đã hết hạn nộp hồ sơ.
+            </p>
           )}
 
           {!isDetailLoading && jobDetail && (
