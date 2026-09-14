@@ -72,7 +72,7 @@ export function ApplicantCardPage() {
   const [isCreateOfferModalOpen, setIsCreateOfferModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<number | null>(null);
-  // UC-27/28: chỉ có ý nghĩa chuyển tab khi có cả 2 tab (AI cần quyền AI_VIEW);
+  // UC-27/28: chỉ có ý nghĩa chuyển tab khi có cả 2 tab (tab AI cần quyền AI_VIEW);
   // nếu không có quyền AI, tab Scorecard hiển thị trực tiếp, không cần switcher.
   const [activeTab, setActiveTab] = useState<'AI' | 'SCORECARD'>('AI');
 
@@ -114,7 +114,9 @@ export function ApplicantCardPage() {
   // được backend kiểm tra lại; đây chỉ để ẩn nút với ai chắc chắn không có quyền.
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const canView = currentUser?.permissions.includes('APPLICATION_VIEW') ?? false;
+  // AI_VIEW (xem kết quả) cấp cả Interviewer; AI_RUN (chạy lại AI) chỉ Recruiter/HM.
   const canViewAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
+  const canRunAi = currentUser?.permissions.includes('AI_RUN') ?? false;
   const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
   const canSendOffer = currentUser?.permissions.includes('OFFER_SEND') ?? false;
   const canScheduleInterview = currentUser?.permissions.includes('INTERVIEW_SCHEDULE') ?? false;
@@ -306,7 +308,7 @@ export function ApplicantCardPage() {
               </div>
 
               {activeTab === 'AI' ? (
-                <AiMatchAnalysisSection applicationId={application.applicationId} canRun={canViewAi} />
+                <AiMatchAnalysisSection applicationId={application.applicationId} canRun={canRunAi} />
               ) : (
                 <ScorecardTab applicationId={application.applicationId} candidateName={application.candidateName} />
               )}

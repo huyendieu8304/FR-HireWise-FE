@@ -52,9 +52,9 @@ export function KanbanBoardView({ jobId }: KanbanBoardViewProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user);
-  // UI-only gate — quyền thật (AI_VIEW) luôn được backend kiểm tra lại; đây
+  // UI-only gate — quyền thật (AI_RUN) luôn được backend kiểm tra lại; đây
   // chỉ để ẩn nút với ai chắc chắn không có quyền (cùng pattern ApplicantCardPage).
-  const canRunAi = currentUser?.permissions.includes('AI_VIEW') ?? false;
+  const canRunAi = currentUser?.permissions.includes('AI_RUN') ?? false;
   const canCreateOffer = currentUser?.permissions.includes('OFFER_CREATE') ?? false;
   const canReject = currentUser?.permissions.includes('APPLICATION_REJECT') ?? false;
   const [dragState, setDragState] = useState<{
